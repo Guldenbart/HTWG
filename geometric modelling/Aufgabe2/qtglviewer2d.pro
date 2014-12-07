@@ -7,8 +7,10 @@ TEMPLATE = app
 SOURCES += main.cpp \
     mainwindow.cpp \
     glwidget.cpp \
-    points.cpp
+    points.cpp \
+    bezier.cpp
 HEADERS += mainwindow.h \
     glwidget.h \
-    points.h
+    points.h \
+    bezier.h
 FORMS += mainwindow.ui

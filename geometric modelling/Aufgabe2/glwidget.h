@@ -32,6 +32,7 @@ private:
     float   epsilon_draw, epsilon_intersection;
     int     clickedPoint;
     bool    doIntersection,doSelfIntersection;
+	int		firstCurveSize;
 };
 
 

@@ -2,6 +2,7 @@
 #include "glwidget.h"
 #include <QtGui>
 #include "mainwindow.h"
+#include "bezier.h"
 
 GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
 {
@@ -9,6 +10,9 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
     doSelfIntersection   = false;
     epsilon_draw         = (float)0.05;
     epsilon_intersection = (float)0.000005;
+
+	firstCurveSize	= 5;
+	//int secondCurveSize	= 4;
 
     // Hier Punkte hinzufügen (schönere Startpositionen!)
     points.addPoint(-1.00, -0.5);
@@ -54,20 +58,30 @@ void GLWidget::paintGL()
     // Hüllpolygone zeichnen
     glColor3f(0.0,0.0,1.0);
     glBegin(GL_LINE_STRIP);
-    for (int i=0; i<5; i++) {
+	for (int i=0; i<firstCurveSize; i++) {
         glVertex2f(points.getPointX(i),points.getPointY(i));
     }
     glEnd();
     glBegin(GL_LINE_STRIP);
-    for (int i=5; i<points.getCount(); i++) {
+	for (int i=firstCurveSize; i<points.getCount(); i++) {
         glVertex2f(points.getPointX(i),points.getPointY(i));
     }
     glEnd();
 
     // Kurve
     glColor3f(1.0,1.0,1.0);
-    // AUFGABE: Hier Kurve zeichnen
-    // dabei epsilon_draw benutzen
+	QList<QPointF> firstCurvePoints, secondCurvePoints;
+	for (int i=0; i<firstCurveSize; i++) {
+		firstCurvePoints.append(points.getPoint(i));
+	}
+	for (int i=firstCurveSize; i<points.getCount(); i++) {
+		secondCurvePoints.append(points.getPoint(i));
+	}
+	// AUFGABE: Hier Kurve zeichnen
+	// dabei epsilon_draw benutzen
+	drawBezierCurve(firstCurvePoints.count(), firstCurvePoints, this->epsilon_draw);
+	drawBezierCurve(secondCurvePoints.count(), secondCurvePoints, this->epsilon_draw);
+
 	
     // Schnittpunkte zeichnen
     if (doIntersection) {
