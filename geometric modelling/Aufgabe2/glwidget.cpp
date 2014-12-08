@@ -79,8 +79,8 @@ void GLWidget::paintGL()
 	}
 	// AUFGABE: Hier Kurve zeichnen
 	// dabei epsilon_draw benutzen
-	drawBezierCurve(firstCurvePoints.count(), firstCurvePoints, this->epsilon_draw);
-	drawBezierCurve(secondCurvePoints.count(), secondCurvePoints, this->epsilon_draw);
+	drawBezierCurve(firstCurvePoints.count()*2, firstCurvePoints, this->epsilon_draw);
+	drawBezierCurve(secondCurvePoints.count()*2, secondCurvePoints, this->epsilon_draw);
 
 	
     // Schnittpunkte zeichnen

@@ -3,7 +3,7 @@
 
 void drawBezierCurve(int k, QList<QPointF> ps, float epsilon_draw)
 {
-	if (k == 0 /*|| maxDifference(ps) < epsilon_draw*/) {
+	if (k == 0 || maxDifference(ps) < epsilon_draw) {
 		glBegin(GL_LINE_STRIP);
 
 		for (int i=0; i<ps.count(); i++) {
@@ -13,39 +13,18 @@ void drawBezierCurve(int k, QList<QPointF> ps, float epsilon_draw)
 		glEnd();
 
 	} else {
-		QList<QPointF> leftHalf, rightHalf;
-		double halfSize = static_cast<double>(ps.count())/2.0;
-		int i = 0;
+		QList<QPointF> newList;
+		int i;
 
-		if (ps.count() % 2) {
-			leftHalf.append(ps[i++]);
+		newList.append(ps[0]);
 
-			for (i; i<halfSize; i++) {
-				leftHalf.append(interpolate(ps[i-1], ps[i], 0.5));
-				leftHalf.append(ps[i]);
-			}
-
-			rightHalf.append(ps[i-1]);
-
-			for (i; i<ps.count(); i++) {
-				rightHalf.append(interpolate(ps[i-1], ps[i], 0.5));
-				rightHalf.append(ps[i]);
-			}
-		} else {	// (ps.count() % 2) == 0
-
-			for (i=0; i<halfSize; i++) {
-				leftHalf.append(ps[i]);
-				leftHalf.append(interpolate(ps[i], ps[i+1], 0.5));
-			}
-
-			for (i; i<ps.count(); i++) {
-				rightHalf.append(interpolate(ps[i-1], ps[i], 0.5));
-				rightHalf.append(ps[i]);
-			}
+		for (i=0; i<(ps.count()-1); i++) {
+			newList.append(interpolate(ps[i], ps[i+1], 0.5));
 		}
 
-		drawBezierCurve(k-1, leftHalf, epsilon_draw);
-		drawBezierCurve(k-1, rightHalf, epsilon_draw);
+		newList.append(ps[i]);
+
+		drawBezierCurve(k-1, newList, epsilon_draw);
 
 	}
 }
