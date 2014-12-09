@@ -14,7 +14,7 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
 	firstCurveSize	= 5;
 	//int secondCurveSize	= 4;
 
-    // Hier Punkte hinzufügen (schönere Startpositionen!)
+	// Hier Punkte hinzufügen (schönere Startpositionen!)
     points.addPoint(-1.00, -0.5);
     points.addPoint(-0.75, -0.5);
     points.addPoint(-0.50, -0.5);
@@ -55,7 +55,7 @@ void GLWidget::paintGL()
 	
     glEnd();
 
-    // Hüllpolygone zeichnen
+	// Hüllpolygone zeichnen
     glColor3f(0.0,0.0,1.0);
     glBegin(GL_LINE_STRIP);
 	for (int i=0; i<firstCurveSize; i++) {
@@ -70,29 +70,28 @@ void GLWidget::paintGL()
 
     // Kurve
     glColor3f(1.0,1.0,1.0);
-	QList<QPointF> firstCurvePoints, secondCurvePoints;
+	Points firstCurvePoints, secondCurvePoints;
 	for (int i=0; i<firstCurveSize; i++) {
-		firstCurvePoints.append(points.getPoint(i));
+		firstCurvePoints.addPoint(points.getPointX(i), points.getPointY(i));
 	}
 	for (int i=firstCurveSize; i<points.getCount(); i++) {
-		secondCurvePoints.append(points.getPoint(i));
+		secondCurvePoints.addPoint(points.getPointX(i), points.getPointY(i));
 	}
 	// AUFGABE: Hier Kurve zeichnen
 	// dabei epsilon_draw benutzen
-	drawBezierCurve(firstCurvePoints.count()*2, firstCurvePoints, this->epsilon_draw);
-	drawBezierCurve(secondCurvePoints.count()*2, secondCurvePoints, this->epsilon_draw);
+	drawBezierCurve(firstCurvePoints.getCount(), firstCurvePoints, this->epsilon_draw);
+	drawBezierCurve(secondCurvePoints.getCount(), secondCurvePoints, this->epsilon_draw);
 
 	
     // Schnittpunkte zeichnen
     if (doIntersection) {
         glColor3f(0.0,1.0,0.0);
-        // AUFGABE: Hier Schnitte zeichnen
-        // dabei epsilon_intersection benutzen
-    }
+		drawIntersect(firstCurvePoints, secondCurvePoints, this->epsilon_intersection);
+	}
     if (doSelfIntersection) {
         glColor3f(1.0,0.0,1.0);
-        // AUFGABE: Hier Selbstschnitte zeichnen
-        // dabei epsilon_intersection benutzen
+		drawSelfIntersect(firstCurvePoints, this->epsilon_intersection);
+		drawSelfIntersect(secondCurvePoints, this->epsilon_intersection);
     }
 }
 
@@ -167,9 +166,11 @@ void GLWidget::setSelfIntersection(int state)
 void GLWidget::setEpsilonDraw(double value)
 {
     epsilon_draw = value;
+	update();
 }
 
 void GLWidget::setEpsilonIntersection(double value)
 {
     epsilon_intersection = value;
+	update();
 }

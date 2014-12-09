@@ -59,9 +59,3 @@ void Points::moveClosestPoint(float x, float y, float tox, float toy)
     pointlist[pntnum].setX(tox);
     pointlist[pntnum].setY(toy);
 }
-
-QPointF Points::getPoint(int i)
-{
-	QPointF retVal = this->pointlist[i];
-	return retVal;
-}
