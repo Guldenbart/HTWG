@@ -90,8 +90,8 @@ void GLWidget::paintGL()
 	}
     if (doSelfIntersection) {
         glColor3f(1.0,0.0,1.0);
-		drawSelfIntersect(firstCurvePoints, this->epsilon_intersection);
-		drawSelfIntersect(secondCurvePoints, this->epsilon_intersection);
+				drawSelfIntersect(firstCurvePoints, this->epsilon_intersection);
+				drawSelfIntersect(secondCurvePoints, this->epsilon_intersection);
     }
 }
 

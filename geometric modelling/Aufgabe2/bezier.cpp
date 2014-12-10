@@ -17,16 +17,16 @@ void drawBezierCurve(int k, Points ps, float epsilon_draw)
 	else
 	{
 		// neue Punkte mit deCasteljau-Algorithmus errechnen
-		Points new_points = deCasteljauTrigger(ps);
+		Points newPoints = deCasteljauTrigger(ps);
 		Points leftHalf, rightHalf;
-		int halfSize = new_points.getCount() / 2;
+		int halfSize = newPoints.getCount() / 2;
 
 		// neue Punkte aufteilen
 		for (int i=0; i<halfSize; i++) {
-			leftHalf.addPoint(new_points.getPointX(i), new_points.getPointY(i));
+			leftHalf.addPoint(newPoints.getPointX(i), newPoints.getPointY(i));
 		}
-		for (int i=halfSize; i<new_points.getCount(); i++) {
-			rightHalf.addPoint(new_points.getPointX(i), new_points.getPointY(i));
+		for (int i=halfSize; i<newPoints.getCount(); i++) {
+			rightHalf.addPoint(newPoints.getPointX(i), newPoints.getPointY(i));
 		}
 
 		// eine Rekursion tiefer gehen
@@ -172,11 +172,24 @@ void drawIntersect(Points bPoints, Points cPoints, float epsilon_intersection)
 void drawSelfIntersect(Points points, float epsilon_intersection)
 {
 	if (tangentsAngle(points) <= 180.0) {
-		// no intersection possible. nothing to do here...
-		return;
+			// no intersection possible. nothing to do here...
+			return;
 	}
 
+	// zwei Hälften mit deCasteljau-Algorithmus errechnen
+	Points newPoints = deCasteljauTrigger(points);
+	Points leftHalf, rightHalf;
+	int halfSize = newPoints.getCount() / 2;
 
+	// neue Punkte aufteilen
+	for (int i=0; i<halfSize; i++) {
+		leftHalf.addPoint(newPoints.getPointX(i), newPoints.getPointY(i));
+	}
+	for (int i=halfSize; i<newPoints.getCount(); i++) {
+		rightHalf.addPoint(newPoints.getPointX(i), newPoints.getPointY(i));
+	}
+
+	drawIntersect(leftHalf, rightHalf, epsilon_intersection);
 }
 
 
@@ -230,9 +243,9 @@ float tangentsAngle(Points p)
 	QPointF lastP(p.getPointX(1)-p.getPointX(0), p.getPointY(1)-p.getPointX(0));
 
 	for (int i=1; i<(n-1); i++)	{
-		QPointF newP(p.getPointX(i+1)-p.getPointX(i), p.getPointY(i+1)-p.getPointY(i));
-		double angle = (lastP.x()*newP.x() + lastP.y()*newP.y()) / (sqrt(lastP.x()^2*lastP.x()^2) * sqrt(lastP.y()^2*lastP.y()^2));
-		totalAngle += acos(angle);
+			QPointF newP(p.getPointX(i+1)-p.getPointX(i), p.getPointY(i+1)-p.getPointY(i));
+			double angle = (lastP.x()*newP.x() + lastP.y()*newP.y()) / (sqrt(lastP.x()*lastP.x()+newP.y()*newP.y()) * sqrt(lastP.y()*lastP.y()+newP.y()*newP.y()));
+			totalAngle += acos(angle);
 	}
 
 	return totalAngle;

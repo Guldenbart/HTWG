@@ -16,9 +16,10 @@ void deCasteljau(Points ps, int k, Points *result);
 QPointF maxForwardDifference(Points points);
 
 void drawIntersect(Points firstCurvePoints, Points secondCurvePoints, float epsilon_intersection);
-drawSelfIntersect(Points points, float epsilon_intersection);
+void drawSelfIntersect(Points points, float epsilon_intersection);
 QRectF getBoundaryBox(Points p);
 
+float tangentsAngle(Points p);
 float absolute(float f);
 
 #endif // BEZIER_H
