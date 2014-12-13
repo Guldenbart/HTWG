@@ -17,7 +17,7 @@ void drawBezierCurve(int k, Points ps, float epsilon_draw)
 	else
 	{
 		// neue Punkte mit deCasteljau-Algorithmus errechnen
-		Points newPoints = deCasteljauTrigger(ps);
+		Points newPoints = deCasteljauTrigger(ps, 0.5);
 		Points leftHalf, rightHalf;
 		int halfSize = newPoints.getCount() / 2;
 
@@ -37,20 +37,20 @@ void drawBezierCurve(int k, Points ps, float epsilon_draw)
 }
 
 
-Points deCasteljauTrigger(Points ps)
+Points deCasteljauTrigger(Points ps, float ratio)
 {
 	Points result;
-	deCasteljau(ps, ps.getCount(), &result); //Punkte, Anzahl Punkte des Polygons, Ergebnisfeld
+	deCasteljau(ps, ps.getCount(), ratio, &result); //Punkte, Anzahl Punkte des Polygons, Ergebnisfeld
 	return result;
 }
 
 
-void deCasteljau(Points ps, int k, Points *result)
+void deCasteljau(Points ps, int k, float ratio, Points *result)
 {
 	Points tmp;
 	QPointF pf;
 
-	// Abbruchbedinung; Ende der Rekursion erreicht.
+	// Abbruchbedingung; Ende der Rekursion erreicht.
 	if (k == 0) {
 		return;
 	}
@@ -58,13 +58,13 @@ void deCasteljau(Points ps, int k, Points *result)
 	result->addPoint(ps.getPointX(0), ps.getPointY(0));
 
 	for (int i = 0; i < k - 1; i++) {
-		pf.setX(ps.getPointX(i)*0.5 + ps.getPointX(i + 1)*0.5);
-		pf.setY(ps.getPointY(i)*0.5 + ps.getPointY(i + 1)*0.5);
-		tmp.addPoint(pf.x(),pf.y());
+		pf.setX(ps.getPointX(i)*(1-ratio) + ps.getPointX(i + 1)*ratio);
+		pf.setY(ps.getPointY(i)*(1-ratio) + ps.getPointY(i + 1)*ratio);
+		tmp.addPoint(pf.rx(),pf.ry());
 	}
 
 	// rekursiver Aufruf
-	deCasteljau(tmp, k - 1, result);
+	deCasteljau(tmp, k - 1, ratio, result);
 
 	result->addPoint(ps.getPointX(ps.getCount() - 1), ps.getPointY(ps.getCount() - 1));
 }
@@ -115,7 +115,7 @@ void drawIntersect(Points bPoints, Points cPoints, float epsilon_intersection)
 		if (  m * (m - 1) * maxdiff_firstCurve.x() > epsilon_intersection && m * (m - 1) * maxdiff_firstCurve.y() > epsilon_intersection  )
 		{
 			/* Berechne a0, ..., a2m über[0, 1/2, 1] mit dem deCasteljau - Algorithmus*/
-			Points newPoints = deCasteljauTrigger(bPoints);
+			Points newPoints = deCasteljauTrigger(bPoints, 0.5);
 			Points leftHalf, rightHalf;
 			int halfSize = newPoints.getCount() / 2;
 
@@ -133,7 +133,7 @@ void drawIntersect(Points bPoints, Points cPoints, float epsilon_intersection)
 		} else if (n * (n - 1) * maxdiff_secondCurve.x() > epsilon_intersection && n * (n - 1) * maxdiff_secondCurve.y() > epsilon_intersection) {
 
 			// Berechne d0, ..., d2n über[0, 1/2, 1] mit dem deCasteljau - Algorithmus;
-			Points newPoints = deCasteljauTrigger(cPoints);
+			Points newPoints = deCasteljauTrigger(cPoints, 0.5);
 			Points leftHalf, rightHalf;
 			int halfSize = newPoints.getCount() / 2;
 
@@ -177,7 +177,7 @@ void drawSelfIntersect(Points points, float epsilon_intersection)
 	}
 
 	// zwei Hälften mit deCasteljau-Algorithmus errechnen
-	Points newPoints = deCasteljauTrigger(points);
+	Points newPoints = deCasteljauTrigger(points, 0.5);
 	Points leftHalf, rightHalf;
 	int halfSize = newPoints.getCount() / 2;
 
@@ -258,5 +258,23 @@ float absolute(float f)
 		f *= -1;
 	}
 	return f;
+}
+
+
+Points createSegment(Points p, QPointF newPoint)
+{
+	Points temp = deCasteljauTrigger(p, 1.5);
+	Points segmentPoints;
+
+	/*
+	 * Die zweite Hälfte der erhaltenen Punkte sind die des neuen Segments.
+	 * Der letzte Punkt wird jedoch nicht benötigt, weil stattdessen 'newPoint' eingefügt wird
+	 */
+	for (int i=temp.getCount()-1; i>p.getCount(); i--) {
+		segmentPoints.addPoint(temp.getPointX(i), temp.getPointY(i));
+	}
+	segmentPoints.addPoint(newPoint.x(), newPoint.y());
+
+	return segmentPoints;
 }
 

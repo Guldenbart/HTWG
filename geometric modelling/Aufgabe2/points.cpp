@@ -4,9 +4,13 @@ Points::Points()
 {
 }
 
-void Points::addPoint(float x,float y)
+void Points::addPoint(float x,float y, int index)
 {
-    pointlist.append(QPointF(x,y));
+	if (index == -1) {
+		pointlist.append(QPointF(x,y));
+	} else {
+		pointlist.insert(index,QPointF(x,y));
+	}
 }
 
 float Points::getPointX(int i)

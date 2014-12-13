@@ -7,7 +7,7 @@ class Points
 {
 public:
     Points();
-    void  addPoint (float x, float y);
+	void  addPoint (float x, float y, int index = -1);
     float getPointX(int   i);
     float getPointY(int   i);
     void  setPointX(int   i, float x);
