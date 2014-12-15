@@ -1,11 +1,22 @@
 #include "bezier.h"
 #include "glwidget.h"
 
+
+/*
+ * Funktion, um eine Kurve in Bezier-Repräsentation zu zeichnen
+
+ * Parameter:
+ * k - Höchstanzahl an Rekursionsaufrufen
+ * ps - Bezier-Punkte
+ * epsilon_draw - geforderte Genauigkeit
+ */
+
 void drawBezierCurve(int k, Points ps, float epsilon_draw)
 {
 	// Abbruchbedinung erreicht: entweder das Höchstmaß an Durchläufen oder eine hinreichende Genauigkeit
 	if (k == 0 || (maxForwardDifference(ps).x() < epsilon_draw && maxForwardDifference(ps).y() < epsilon_draw) ) {
 
+		// Liniensegmente zeichnen
 		glBegin(GL_LINE_STRIP);
 		for (int i = 0; i<ps.getCount(); i++) {
 			glVertex2f(ps.getPointX(i), ps.getPointY(i));
@@ -37,6 +48,13 @@ void drawBezierCurve(int k, Points ps, float epsilon_draw)
 }
 
 
+/*
+ * Startet den deCasteljau-Algorithmus und gibt das Ergebnis zurück.
+
+ * Parameter:
+ * ps - Bezier-Punkte
+ * ratio - Verhältnis, mit dem die Kurve geteilt wird
+ */
 Points deCasteljauTrigger(Points ps, float ratio)
 {
 	Points result;
@@ -45,6 +63,15 @@ Points deCasteljauTrigger(Points ps, float ratio)
 }
 
 
+/*
+ * Rekursions-Funktion für deCasterljau-Berechnung
+
+ * Parameter:
+ * ps - Bezier-Punkte
+ * k - Anzahl der Rekursionsaufrufe bis gesuchter Punkt berechnet ist.
+ * ratio - Verhältnis, mit dem die Kurve geteilt wird
+ * result - gesuchte Punkte
+ */
 void deCasteljau(Points ps, int k, float ratio, Points *result)
 {
 	Points tmp;
@@ -172,8 +199,8 @@ void drawIntersect(Points bPoints, Points cPoints, float epsilon_intersection)
 void drawSelfIntersect(Points points, float epsilon_intersection)
 {
 	if (tangentsAngle(points) <= 180.0) {
-			// no intersection possible. nothing to do here...
-			return;
+		// no intersection possible. nothing to do here...
+		return;
 	}
 
 	// zwei Hälften mit deCasteljau-Algorithmus errechnen
