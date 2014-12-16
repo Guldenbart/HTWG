@@ -10,7 +10,7 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
 	doSelfIntersection   = false;
 	epsilon_draw         = (float)0.05;
 	epsilon_intersection = (float)0.000005;
-	whichCurve           = 2;
+	whichCurve           = 1;
 
 	curveSizes.append(5);
 	curveSizes.append(4);

@@ -54,6 +54,8 @@ void drawBezierCurve(int k, Points ps, float epsilon_draw)
  * Parameter:
  * ps - Bezier-Punkte
  * ratio - Verhältnis, mit dem die Kurve geteilt wird
+
+ * Rückgabewert: durch den deCasteljau-Algorithmus errechneten Punkte
  */
 Points deCasteljauTrigger(Points ps, float ratio)
 {
@@ -64,7 +66,7 @@ Points deCasteljauTrigger(Points ps, float ratio)
 
 
 /*
- * Rekursions-Funktion für deCasterljau-Berechnung
+ * Rekursions-Funktion für deCasteljau-Berechnung
 
  * Parameter:
  * ps - Bezier-Punkte
@@ -97,6 +99,14 @@ void deCasteljau(Points ps, int k, float ratio, Points *result)
 }
 
 
+/*
+ * berechnet die maximale Vorwärtsdifferenz
+
+ * Parameter:
+ * p - Punkte, zwischen denen die mximale Vorwärtsdifferenz berechnet werden soll.
+
+ * Rückgabewert: x- und y-Wert der maximalen Vorwärtsdifferenz in einem QPointF
+ */
 QPointF maxForwardDifference(Points p)
 {
 	float xMax = 0.0;
@@ -118,8 +128,17 @@ QPointF maxForwardDifference(Points p)
 }
 
 
+/*
+ * Funktion zum Zeichnen von Schnittpunkten zweier Bezier-Kurven
+
+ * Parameter:
+ * bPoints - Bezier-Punkte der ersten Kurve
+ * cPoints - Bezier-Punkte der zweiten Kurve
+ * epsilon_intersection - Genauigkeit, mit der der Schnittpunkt berechnet wird
+ */
 void drawIntersect(Points bPoints, Points cPoints, float epsilon_intersection)
 {
+	// Bounding boxes der beiden Kurven erstellen
 	QRectF bBox_b = getBoundaryBox(bPoints);
 	QRectF bBox_c = getBoundaryBox(cPoints);
 
@@ -132,6 +151,7 @@ void drawIntersect(Points bPoints, Points cPoints, float epsilon_intersection)
 		lineintersect = line1.intersect(line2, intersectionPoint);
 	}
 
+	// grundsätzliche Überschneidung der bounding boxes
 	if (bBox_b.intersects(bBox_c) || lineintersect != QLineF::NoIntersection) {
 
 		QPointF maxdiff_firstCurve = maxForwardDifference(bPoints);
@@ -196,6 +216,13 @@ void drawIntersect(Points bPoints, Points cPoints, float epsilon_intersection)
 }
 
 
+/*
+ * Funktion zum Zeichnen von Selbst-Schnittpunkten einer Bezier-Kurve
+
+ * Parameter:
+ * points - Bezier-Punkte der Kurve
+ * epsilon_intersection - Genauigkeit, mit der der Schnittpunkt berechnet wird
+ */
 void drawSelfIntersect(Points points, float epsilon_intersection)
 {
 	if (tangentsAngle(points) <= 180.0) {
@@ -216,10 +243,19 @@ void drawSelfIntersect(Points points, float epsilon_intersection)
 		rightHalf.addPoint(newPoints.getPointX(i), newPoints.getPointY(i));
 	}
 
+	// Starte Rekursion
 	drawIntersect(leftHalf, rightHalf, epsilon_intersection);
 }
 
 
+/*
+ * Erstellt aus Punkten einer Kurve die dazugehörige bounding box
+
+ * Parameter:
+ * p - Bezier-Punkte der Kurve
+
+ * Rückgabewert: Boundary box als QRectF
+ */
 QRectF getBoundaryBox(Points p)
 {
 	float xMin = p.getPointX(0);
@@ -259,6 +295,14 @@ QRectF getBoundaryBox(Points p)
 }
 
 
+/*
+ * Berechnet den Winkel zwischen Vektoren
+
+ * Parameter:
+ * p - Bezier-Punkte der Kurve
+
+ * Rückgabewert: Gesamtwinkel
+ */
 float tangentsAngle(Points p)
 {
 	if (p.getCount() < 2) {
@@ -270,15 +314,23 @@ float tangentsAngle(Points p)
 	QPointF lastP(p.getPointX(1)-p.getPointX(0), p.getPointY(1)-p.getPointX(0));
 
 	for (int i=1; i<(n-1); i++)	{
-			QPointF newP(p.getPointX(i+1)-p.getPointX(i), p.getPointY(i+1)-p.getPointY(i));
-			double angle = (lastP.x()*newP.x() + lastP.y()*newP.y()) / (sqrt(lastP.x()*lastP.x()+newP.y()*newP.y()) * sqrt(lastP.y()*lastP.y()+newP.y()*newP.y()));
-			totalAngle += acos(angle);
+		QPointF newP(p.getPointX(i+1)-p.getPointX(i), p.getPointY(i+1)-p.getPointY(i));
+		double angle = (lastP.x()*newP.x() + lastP.y()*newP.y()) / (sqrt(lastP.x()*lastP.x()+newP.y()*newP.y()) * sqrt(lastP.y()*lastP.y()+newP.y()*newP.y()));
+		totalAngle += acos(angle);
 	}
 
 	return totalAngle;
 }
 
 
+/*
+ * Betrags-Funktion
+
+ * Parameter:
+ * f - Zahl, deren Betrag berechnet werden soll
+
+ * Rückgabewert: |f|
+ */
 float absolute(float f)
 {
 	if (f < 0) {
@@ -288,6 +340,16 @@ float absolute(float f)
 }
 
 
+/*
+ * Berechnet zu einer gegebenen Kurve und einem zusätzlichen Punkt ein neues Bezier-Segment mit C^(n-1)-Übergang.
+ * Der zusätzliche Punkt ist Endpunkt des neuen Segments.
+
+ * Parameter:
+ * p - Bezier-Punkte der vorhandenen Kurve
+ * newPoint - neu gesetzter Punkt, welcher der Endpunkt des neuen Segments ist
+
+ * Rückgabewert: Alle Punkte des neuen Segments
+ */
 Points createSegment(Points p, QPointF newPoint)
 {
 	Points temp = deCasteljauTrigger(p, 1.5);
@@ -300,8 +362,9 @@ Points createSegment(Points p, QPointF newPoint)
 	for (int i=temp.getCount()-1; i>p.getCount(); i--) {
 		segmentPoints.addPoint(temp.getPointX(i), temp.getPointY(i));
 	}
+
+	// Einsetzen des neuen Punktes
 	segmentPoints.addPoint(newPoint.x(), newPoint.y());
 
 	return segmentPoints;
 }
-
