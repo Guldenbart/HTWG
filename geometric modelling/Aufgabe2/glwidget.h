@@ -35,7 +35,8 @@ private:
 	float   epsilon_draw, epsilon_intersection;
 	int     clickedPoint;
 	bool    doIntersection,doSelfIntersection;
-	int		whichCurve;
+	int		whichCurve;			// welche Kurve bei Rechtsklick erweitert werden soll
+	int		secondCurveIndex;	// Index, an dem die Anzahl der Punkte der "ursprünglichen" zweiten Kurve liegt
 	QList<int> curveSizes;
 };
 
