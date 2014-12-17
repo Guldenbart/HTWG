@@ -352,7 +352,7 @@ float absolute(float f)
  */
 Points createSegment(Points p, QPointF newPoint)
 {
-	Points temp = deCasteljauTrigger(p, 1.5);
+	Points temp = deCasteljauTrigger(p, 2.0);
 	Points segmentPoints;
 
 	/*

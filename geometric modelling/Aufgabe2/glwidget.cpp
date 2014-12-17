@@ -79,23 +79,29 @@ void GLWidget::paintGL()
 	}
 
 	// Schnittpunkte zeichnen
-	Points firstCurvePoints, secondCurvePoints;
-	for (int i=0; i<curveSizes[0]; i++) {
-		firstCurvePoints.addPoint(points.getPointX(i), points.getPointY(i));
-	}
-	for (int i=curveSizes[0]; i<(curveSizes[0]+curveSizes[1]); i++) {
-		secondCurvePoints.addPoint(points.getPointX(i), points.getPointY(i));
+	Points* pointsArray = new Points[curveSizes.count()];
+	for (int j=0; j<curveSizes.count(); j++) {
+		for (int i=sumCurveSizes(j); i<sumCurveSizes(j)+curveSizes[j]; i++) {
+			pointsArray[j].addPoint(points.getPointX(i), points.getPointY(i));
+		}
 	}
 
 	if (doIntersection) {
 		glColor3f(0.0,1.0,0.0);
-		drawIntersect(firstCurvePoints, secondCurvePoints, this->epsilon_intersection);
+		for (int i=0; i<curveSizes.count(); i++) {
+			for (int j=i+1; j<curveSizes.count(); j++) {
+				drawIntersect(pointsArray[i], pointsArray[j], this->epsilon_intersection);
+			}
+		}
 	}
 	if (doSelfIntersection) {
 		glColor3f(1.0,0.0,1.0);
-		drawSelfIntersect(firstCurvePoints, this->epsilon_intersection);
-		drawSelfIntersect(secondCurvePoints, this->epsilon_intersection);
+		for (int i=0; i<curveSizes.count(); i++) {
+			drawSelfIntersect(pointsArray[i], this->epsilon_intersection);
+		}
 	}
+
+	delete pointsArray;
 }
 
 
