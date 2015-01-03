@@ -11,6 +11,7 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
 	epsilon_draw         = (float)0.05;
 	epsilon_intersection = (float)0.000005;
 	whichCurve           = 1;
+	secondCurveIndex     = 1;
 
 	curveSizes.append(5);
 	curveSizes.append(4);
@@ -70,21 +71,20 @@ void GLWidget::paintGL()
 	// Kurve
 	glColor3f(1.0,1.0,1.0);
 
-	for (int i=0; i<curveSizes.count(); i++) {
-		Points curvePoints;
-		for (int j=0; j<curveSizes[i]; j++) {
-			curvePoints.addPoint(points.getPointX(j+sumCurveSizes(i)), points.getPointY(j+sumCurveSizes(i)));
-		}
-		drawBezierCurve(curvePoints.getCount(), curvePoints, this->epsilon_draw);
-	}
-
-	// Schnittpunkte zeichnen
+	// Kurvenpunkte auf Kurven aufteilen
 	Points* pointsArray = new Points[curveSizes.count()];
 	for (int j=0; j<curveSizes.count(); j++) {
 		for (int i=sumCurveSizes(j); i<sumCurveSizes(j)+curveSizes[j]; i++) {
 			pointsArray[j].addPoint(points.getPointX(i), points.getPointY(i));
 		}
 	}
+
+	// Kurven zeichnen
+	for (int i=0; i<curveSizes.count(); i++) {
+		drawBezierCurve(pointsArray[i].getCount(), pointsArray[i], this->epsilon_draw);
+	}
+
+	// Schnittpunkte zeichnen
 
 	if (doIntersection) {
 		glColor3f(0.0,1.0,0.0);
@@ -195,10 +195,10 @@ void GLWidget::newPoint(QPointF newP)
 			points.addPoint(newSegmentPoints.getPointX(i), newSegmentPoints.getPointY(i), curveSizes[0]+i);
 		}
 		curveSizes.insert(1, newSegmentPoints.getCount());
+		this->secondCurveIndex++;
 	} else {	// whichCurve == 2
-		int index = curveSizes.count()>2 ? 2 : 1;	// index von curveSizes, an dem die "zweite" Kurve ist
-		for (int i=0; i<curveSizes[index]; i++) {
-			oldCurvePoints.addPoint(points.getPointX(sumCurveSizes(index)+i), points.getPointY(sumCurveSizes(index)+i));
+		for (int i=0; i<curveSizes[secondCurveIndex]; i++) {
+			oldCurvePoints.addPoint(points.getPointX(sumCurveSizes(secondCurveIndex)+i), points.getPointY(sumCurveSizes(secondCurveIndex)+i));
 		}
 		Points newSegmentPoints = createSegment(oldCurvePoints, newP);
 
