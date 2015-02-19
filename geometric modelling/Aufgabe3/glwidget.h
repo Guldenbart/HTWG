@@ -2,6 +2,7 @@
 #define GLWIDGET_H
 
 #include <QGLWidget>
+#include <QDebug>
 #include "knots.h"
 
 class GLWidget : public QGLWidget
@@ -18,6 +19,7 @@ protected:
     void resizeGL             (int width, int height);
     void mouseMoveEvent       (QMouseEvent *event);
     void mousePressEvent      (QMouseEvent *event);
+	void keyPressEvent		  (QKeyEvent *);
 private:
     QPointF transformPosition(QPoint p);
     float aspectx, aspecty;
@@ -26,6 +28,13 @@ private:
     int clickedPoint;
     int clickedKnot;
     float epsilon_draw;
+
+	bool drawCurve;
+	int degree;
+
+	// deBoor-Sachen
+	Points deBoorStarter(int multiplicity, int newKnot);
+	void deBoor(Points ps, int k, int column, int r, Points *result);
 };
 
 

@@ -6,8 +6,8 @@ class Knots : public Points
 {
 public:
     Knots();
-    void insertKnot(float value);
-    void insertKnotX(float x);
+	int insertKnot(float value);
+	int insertKnotX(float x);
     void setValueX(int i, float x);
     float getValue(int i);
 };

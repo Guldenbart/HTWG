@@ -7,16 +7,16 @@ Knots::Knots():Points()
     insertKnot(1.0);
 }
 
-void Knots::insertKnot(float value)
+int Knots::insertKnot(float value)
 {
-    if (value < 0.0 || value > 1.0) return;
+	if (value < 0.0 || value > 1.0) return -1;
     float xcoord = value * 1.8 - 0.9;
     if (pointlist.size()<2) {
         pointlist.append(QPointF(xcoord,-0.9));
-        return;
+		return -1;
     }
     int i = 0;
-    while (i<pointlist.size() && getValue(i)<value) {
+	while (i<pointlist.size() && getValue(i)<=value) {
         i++;
     }
     if (i<pointlist.size()) {
@@ -24,12 +24,15 @@ void Knots::insertKnot(float value)
     }
     else {
         printf("Knoten nicht einfügbar bei %f\n",value);
+		return -1;
     }
+
+	return i;
 }
 
-void Knots::insertKnotX(float x)
+int Knots::insertKnotX(float x)
 {
-    insertKnot((x+0.9) / 1.8);
+	return insertKnot((x+0.9) / 1.8);
 }
 
 void Knots::setValueX(int i, float x)

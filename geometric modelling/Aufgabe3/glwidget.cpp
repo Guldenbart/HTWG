@@ -4,7 +4,11 @@
 
 GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
 {
+	setFocusPolicy(Qt::StrongFocus);
+
     epsilon_draw = 0.05;
+	drawCurve = false;
+	degree = 1;
 
     // Hier Punkte hinzufügen: Schönere Startpositionen und anderer Grad!
     points.addPoint(-1.00,  0.5);
@@ -76,6 +80,10 @@ void GLWidget::paintGL()
     glColor3f(1.0,1.0,1.0);
     // AUFGABE: Hier Kurve zeichnen
     // dabei epsilon_draw benutzen
+
+	if (drawCurve) {
+
+	}
 }
 
 
@@ -139,18 +147,105 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
         }
         else
         { // knot was clicked
-            knots.setValueX(clickedKnot,posF.x());
+			knots.setValueX(clickedKnot,posF.x());
             clickedPoint = -1;
         }
     }
     if (event->buttons() & Qt::RightButton) {
-        knots.insertKnotX(posF.x());		
+		int newKnotIndex = knots.insertKnotX(posF.x());
 		// AUFGABE: Hier Knoten in eine B-Spline-Kurve einfügen.
+
+		// Knoten rauskopieren, die betroffen sind:
+
+		// de Boor
+
+		// neuen Punktearray erstellen
     }
     update();
+}
+
+void GLWidget::keyPressEvent(QKeyEvent *e)
+{
+	qDebug() << "KeyPressEvent\n";
+	if (e->key() == Qt::Key_D) {
+		drawCurve = !drawCurve;
+		if (drawCurve) {
+			qDebug() << "Curve drawing on.\n";
+		} else {
+			qDebug() << "Curve drawing off.\n";
+		}
+	}
 }
 
 void GLWidget::setEpsilonDraw(double value)
 {
     epsilon_draw = value;
+}
+
+
+/*
+ * #############################################################
+ * Implementierung rund um deBoor
+ * #############################################################
+ */
+
+/*
+ * Startet den deBoor-Algorithmus und gibt das Ergebnis zurück.
+
+ * Parameter:
+ * column - gibt an, welche Spalte aus dem Schema komplett verwendet wird
+ * newKnot - INDEX des neu eingefügten Knotens
+
+ * Rückgabewert: durch den deBoor-Algorithmus errechneten Punkte
+ */
+Points GLWidget::deBoorStarter(int multiplicity, int newKnot)
+{
+	Points startingPoints, result;
+
+	// Punkte raussuchen, die man braucht:
+	for (int i=newKnot-degree-1; i<newKnot; i++) {
+		if (i<0) {
+			// Punkt nicht vorhanden
+			startingPoints.addPoint(0.0, 0.0);
+		} else {
+			startingPoints.addPoint(points.getPointX(i), points.getPointY(i));
+		}
+	}
+
+	// deBoor starten
+	void deBoor(startingPoints, degree-multiplicity, column, newKnot-1, &result);
+
+	return result;
+}
+
+
+/*
+ * Rekursionsfunktion für den deBoor-Algorithmus
+
+ * Parameter:
+ * ps - durch deBoor errechnete Punkte
+ * k - Rekursionsvariable
+ * r - Index r
+ */
+void GLWidget::deBoor(Points ps, int k, int r, Points *result)
+{
+	Points tmp;
+	QPointF pf;
+
+	// Abbruchbedingung; Ende der Rekursion erreicht. Punkte der zuletzt errechneten Spalte kopieren.
+	if (k == 0) {
+		for (int i=0; i<ps.getCount(); i++) {
+			result->addPoint(ps.getPointX(i), ps.getPointY(i));
+		}
+		return;
+	}
+
+	result->addPoint(ps.getPointX(0), ps.getPointY(0));
+
+	// deBoor-Kern
+
+	// rekursiver Aufruf
+	deCasteljau(tmp, k - 1, ratio, result);
+
+	result->addPoint(ps.getPointX(ps.getCount() - 1), ps.getPointY(ps.getCount() - 1));
 }
