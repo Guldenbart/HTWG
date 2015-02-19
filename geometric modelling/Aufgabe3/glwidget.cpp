@@ -213,7 +213,7 @@ Points GLWidget::deBoorStarter(int multiplicity, int newKnot)
 	}
 
 	// deBoor starten
-	void deBoor(startingPoints, degree-multiplicity, column, newKnot-1, &result);
+	void deBoor(startingPoints, degree-multiplicity, newKnot-1, &result);
 
 	return result;
 }
@@ -243,9 +243,14 @@ void GLWidget::deBoor(Points ps, int k, int r, Points *result)
 	result->addPoint(ps.getPointX(0), ps.getPointY(0));
 
 	// deBoor-Kern
+	for (int i=(r-ps.getCount()+1); i<=r; i++) {
+
+		int j = ;
+	}
 
 	// rekursiver Aufruf
 	deCasteljau(tmp, k - 1, ratio, result);
 
 	result->addPoint(ps.getPointX(ps.getCount() - 1), ps.getPointY(ps.getCount() - 1));
 }
+

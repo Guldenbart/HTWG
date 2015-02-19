@@ -34,7 +34,7 @@ private:
 
 	// deBoor-Sachen
 	Points deBoorStarter(int multiplicity, int newKnot);
-	void deBoor(Points ps, int k, int column, int r, Points *result);
+	void deBoor(Points ps, int k, int r, Points *result);
 };
 
 
