@@ -103,7 +103,7 @@ void deCasteljau(Points ps, int k, float ratio, Points *result)
  * berechnet die maximale Vorwärtsdifferenz
 
  * Parameter:
- * p - Punkte, zwischen denen die mximale Vorwärtsdifferenz berechnet werden soll.
+ * p - Punkte, zwischen denen die maximale Vorwärtsdifferenz berechnet werden soll.
 
  * Rückgabewert: x- und y-Wert der maximalen Vorwärtsdifferenz in einem QPointF
  */

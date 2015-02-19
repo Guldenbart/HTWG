@@ -9,7 +9,6 @@
 
 
 // alles zu Aufgabe 3
-
 void drawBezierCurve(int k, Points ps, float epsilon_draw);
 Points deCasteljauTrigger(Points ps, float ratio);
 void deCasteljau(Points ps, int k, float ratio, Points *result);
