@@ -7,32 +7,72 @@ Knots::Knots():Points()
     insertKnot(1.0);
 }
 
-int Knots::insertKnot(float value)
+void Knots::insertKnot(float value)
+{
+	if (value < 0.0 || value > 1.0) return;
+
+	float xcoord = value * 1.8 - 0.9;
+	if (pointlist.size()<2) {
+		pointlist.append(QPointF(xcoord,-0.9));
+		return;
+	}
+
+	int i = 0;
+	while (i<pointlist.size() && getValue(i)<value) {
+		i++;
+	}
+
+	if (i<pointlist.size()) {
+		pointlist.insert(i,QPointF(xcoord,-0.9));
+	}
+	else {
+		printf("Knoten nicht einfügbar bei %f\n",value);
+	}
+}
+
+int Knots::insertKnot(float value, int degree)
 {
 	if (value < 0.0 || value > 1.0) return -1;
+
     float xcoord = value * 1.8 - 0.9;
     if (pointlist.size()<2) {
         pointlist.append(QPointF(xcoord,-0.9));
 		return -1;
     }
-    int i = 0;
-	while (i<pointlist.size() && getValue(i)<=value) {
-        i++;
-    }
+
+	int i = 0;	// Index, an dem eingefügt wird
+	int j = 0;	// Index, der zurückgegeben wird (r)
+
+	if (value == getValue(pointlist.size()-degree-1)) {
+		i = pointlist.size()-degree;
+		while (j<pointlist.size() && getValue(j)<value) {
+			j++;
+		}
+	} else {
+		while (i<pointlist.size() && getValue(i)<=value) {
+			i++;
+		}
+		j = i;
+	}
+
+	if (j<=degree || j>=(pointlist.size()-degree-1)) {
+		printf("Knoten nicht einfügbar bei %f\n",value);
+		return -1;
+	}
+
     if (i<pointlist.size()) {
-            pointlist.insert(i,QPointF(xcoord,-0.9));
+		pointlist.insert(i,QPointF(xcoord,-0.9));
+		return j;
     }
     else {
         printf("Knoten nicht einfügbar bei %f\n",value);
 		return -1;
     }
-
-	return i;
 }
 
-int Knots::insertKnotX(float x)
+int Knots::insertKnotX(float x, int degree)
 {
-	return insertKnot((x+0.9) / 1.8);
+	return insertKnot((x+0.9) / 1.8, degree);
 }
 
 void Knots::setValueX(int i, float x)

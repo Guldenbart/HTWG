@@ -8,23 +8,23 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
 
     epsilon_draw = 0.05;
 	drawCurve = false;
-	degree = 1;
+	degree = 4;
 
     // Hier Punkte hinzufügen: Schönere Startpositionen und anderer Grad!
     points.addPoint(-1.00,  0.5);
     points.addPoint(-0.30, -0.25);
-    points.addPoint( 0.00,  0.5);
+	points.addPoint( 0.00,  0.5);
     points.addPoint( 0.30, -0.25);
     points.addPoint( 1.00,  0.5);
 
-    knots.insertKnot(0.05);
+	knots.insertKnot(0.05);
     knots.insertKnot(0.1);
     knots.insertKnot(0.3);
     knots.insertKnot(0.4);
     knots.insertKnot(0.5);
     knots.insertKnot(0.7);
-    knots.insertKnot(0.9);
-    knots.insertKnot(0.95);
+	knots.insertKnot(0.9);
+	knots.insertKnot(0.95);
 }
 
 GLWidget::~GLWidget()
@@ -92,6 +92,35 @@ void GLWidget::initializeGL()
     resizeGL(width(),height());
 }
 
+
+void GLWidget::resetPoints()
+{
+	epsilon_draw = 0.05;
+	drawCurve = false;
+	degree = 4;
+
+	// Hier Punkte hinzufügen: Schönere Startpositionen und anderer Grad!
+	Points defaultPoints;
+	defaultPoints.addPoint(-1.00,  0.5);
+	defaultPoints.addPoint(-0.30, -0.25);
+	defaultPoints.addPoint( 0.00,  0.5);
+	defaultPoints.addPoint( 0.30, -0.25);
+	defaultPoints.addPoint( 1.00,  0.5);
+	this->points = defaultPoints;
+
+	Knots defaultKnots;
+	defaultKnots.insertKnot(0.05);
+	defaultKnots.insertKnot(0.1);
+	defaultKnots.insertKnot(0.3);
+	defaultKnots.insertKnot(0.4);
+	defaultKnots.insertKnot(0.5);
+	defaultKnots.insertKnot(0.7);
+	defaultKnots.insertKnot(0.9);
+	defaultKnots.insertKnot(0.95);
+	this->knots = defaultKnots;
+}
+
+
 void GLWidget::resizeGL(int width, int height)
 {
     aspectx=1.0;
@@ -141,9 +170,11 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
         if (points.getDistance(clickedPoint,posF.x(),posF.y()) <=
              knots.getDistance(clickedKnot, posF.x(),posF.y()))
         { // point was clicked
-            points.setPointX(clickedPoint,posF.x());
-            points.setPointY(clickedPoint,posF.y());
-            clickedKnot = -1;
+			if (!drawCurve) {
+				points.setPointX(clickedPoint,posF.x());
+				points.setPointY(clickedPoint,posF.y());
+				clickedKnot = -1;
+			}
         }
         else
         { // knot was clicked
@@ -151,30 +182,57 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
             clickedPoint = -1;
         }
     }
-    if (event->buttons() & Qt::RightButton) {
-		int newKnotIndex = knots.insertKnotX(posF.x());
+	if (event->buttons() & Qt::RightButton) {
+		Knots knotsCopy = this->knots;
+		int newKnotIndex = knotsCopy.insertKnotX(posF.x(), degree);
+		if (newKnotIndex < 0) {
+			// Knoten wurde nicht eingefügt, nichts zu tun.
+			return;
+		}
 		// AUFGABE: Hier Knoten in eine B-Spline-Kurve einfügen.
 
-		// Knoten rauskopieren, die betroffen sind:
+		// 1. de Boor
+		Points newPoints = deBoorStarter(this->points, this->knots, 1, newKnotIndex, knotsCopy.getValue(newKnotIndex));
 
-		// de Boor
+		// 2. neuen Punktearray erstellen
+		Points newPointList;
+		int i;
 
-		// neuen Punktearray erstellen
+		for (i=0; i<newKnotIndex-1-degree; i++) {
+			newPointList.addPoint(points.getPointX(i), points.getPointY(i));
+		}
+		for (int j=0; j<newPoints.getCount(); j++) {
+			newPointList.addPoint(newPoints.getPointX(j), newPoints.getPointY(j));
+		}
+		for (i+=(degree+1); i<points.getCount(); i++) {
+			newPointList.addPoint(points.getPointX(i), points.getPointY(i));
+		}
+		points = newPointList;
+		this->knots = knotsCopy;
     }
     update();
 }
 
 void GLWidget::keyPressEvent(QKeyEvent *e)
 {
-	qDebug() << "KeyPressEvent\n";
+	//qDebug() << "KeyPressEvent\n";
 	if (e->key() == Qt::Key_D) {
 		drawCurve = !drawCurve;
 		if (drawCurve) {
+			this->bezierPoints = this->points;
+			this->bezierKnots = this->knots;
+
 			qDebug() << "Curve drawing on.\n";
 		} else {
 			qDebug() << "Curve drawing off.\n";
 		}
 	}
+	else if (e->key() == Qt::Key_R) {
+		resetPoints();
+		qDebug() << "Reset\n";
+	}
+
+	update();
 }
 
 void GLWidget::setEpsilonDraw(double value)
@@ -198,22 +256,17 @@ void GLWidget::setEpsilonDraw(double value)
 
  * Rückgabewert: durch den deBoor-Algorithmus errechneten Punkte
  */
-Points GLWidget::deBoorStarter(int multiplicity, int newKnot)
+Points GLWidget::deBoorStarter(Points &localPoints, Knots &localKnots, int multiplicity, int newKnotIndex, float newKnotValue)
 {
 	Points startingPoints, result;
 
-	// Punkte raussuchen, die man braucht:
-	for (int i=newKnot-degree-1; i<newKnot; i++) {
-		if (i<0) {
-			// Punkt nicht vorhanden
-			startingPoints.addPoint(0.0, 0.0);
-		} else {
-			startingPoints.addPoint(points.getPointX(i), points.getPointY(i));
-		}
+	// 1. Punkte raussuchen, die man braucht:
+	for (int i=newKnotIndex-degree-1; i<newKnotIndex; i++) {
+		startingPoints.addPoint(localPoints.getPointX(i), localPoints.getPointY(i));
 	}
 
-	// deBoor starten
-	void deBoor(startingPoints, degree-multiplicity, newKnot-1, &result);
+	// 2. deBoor starten
+	deBoor(localKnots, startingPoints, multiplicity, newKnotIndex-1, newKnotValue, &result);
 
 	return result;
 }
@@ -226,8 +279,10 @@ Points GLWidget::deBoorStarter(int multiplicity, int newKnot)
  * ps - durch deBoor errechnete Punkte
  * k - Rekursionsvariable
  * r - Index r
+ * y - Wert des neu eingesetzten Knotens
+ * *result - Ergebnispunkte
  */
-void GLWidget::deBoor(Points ps, int k, int r, Points *result)
+void GLWidget::deBoor(Knots &localKnots, Points ps, int k, int r, float y, Points *result)
 {
 	Points tmp;
 	QPointF pf;
@@ -243,13 +298,23 @@ void GLWidget::deBoor(Points ps, int k, int r, Points *result)
 	result->addPoint(ps.getPointX(0), ps.getPointY(0));
 
 	// deBoor-Kern
-	for (int i=(r-ps.getCount()+1); i<=r; i++) {
+	for (int loop=0; loop<ps.getCount()-1; loop++) {
 
-		int j = ;
+		int i = (r-ps.getCount()+loop+2);
+		int j = degree-ps.getCount()+2;
+		//float z = t-knots.getValue(i);
+		//float n = (knots.getValue(degree+i+1.0-j)-knots.getValue(i));
+		float alpha = (y-localKnots.getValue(i))/(localKnots.getValue(degree+i+1-j)-localKnots.getValue(i));
+		//float alpha = (y-localKnots.getValue(i))/(localKnots.getValue(degree+i)-localKnots.getValue(i));
+		//float alpha = z/n;
+
+		pf.setX((1-alpha)*ps.getPointX(loop) + alpha*ps.getPointX(loop+1));
+		pf.setY((1-alpha)*ps.getPointY(loop) + alpha*ps.getPointY(loop+1));
+		tmp.addPoint(pf.rx(), pf.ry());
 	}
 
 	// rekursiver Aufruf
-	deCasteljau(tmp, k - 1, ratio, result);
+	deBoor(localKnots, tmp, k - 1, r, y, result);
 
 	result->addPoint(ps.getPointX(ps.getCount() - 1), ps.getPointY(ps.getCount() - 1));
 }
