@@ -1,6 +1,7 @@
 #include "glwidget.h"
 #include <QtGui>
 #include "mainwindow.h"
+#include "bezier.h"
 
 GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
 {
@@ -76,13 +77,44 @@ void GLWidget::paintGL()
     }
     glEnd();
 
-    // Kurve zeichnen
-    glColor3f(1.0,1.0,1.0);
     // AUFGABE: Hier Kurve zeichnen
     // dabei epsilon_draw benutzen
 
 	if (drawCurve) {
 
+		// Bézier-Punkte zeichnen
+		glColor3f(1.0,0.7,0.0);
+		glBegin(GL_POINTS);
+		for (int i=0; i<bezierPoints.getCount(); i++) {
+			glVertex2f(bezierPoints.getPointX(i), bezierPoints.getPointY(i));
+		}
+		glEnd();
+
+		// Hüllpolygone zeichnen
+		glBegin(GL_LINE_STRIP);
+		for (int i=0; i<bezierPoints.getCount(); i++) {
+			glVertex2f(bezierPoints.getPointX(i),bezierPoints.getPointY(i));
+		}
+		glEnd();
+
+
+		int s = points.getCount()-degree;
+		glColor3f(1.0,1.0,1.0);
+		// Bézier-Kurve zeichnen
+		if (bezierPoints.getCount() < degree+1) {
+			qDebug("zu wenig Punkte zum Zeichnen!!!");
+		} else {
+			for (int i=0; i<s; i++) {
+				Points* pointsArray = new Points[degree+1];
+				int startIndex = i*degree;
+
+				for (int j=0; j<degree+1; j++) {
+					pointsArray->addPoint(bezierPoints.getPointX(startIndex+j), bezierPoints.getPointY(startIndex+j));
+				}
+
+				drawBezierCurve(degree+1, *pointsArray, this->epsilon_draw);
+			}
+		}
 	}
 }
 
@@ -120,6 +152,34 @@ void GLWidget::resetPoints()
 	this->knots = defaultKnots;
 }
 
+void GLWidget::setupThree()
+{
+	epsilon_draw = 0.05;
+	drawCurve = false;
+	degree = 3;
+
+	// Hier Punkte hinzufügen: Schönere Startpositionen und anderer Grad!
+	Points defaultPoints;
+	defaultPoints.addPoint(-1.00,  0.0);
+	defaultPoints.addPoint(-0.90,  0.3);
+	defaultPoints.addPoint( 0.10,  0.5);
+	defaultPoints.addPoint( 1.00,  0.15);
+	defaultPoints.addPoint( 0.40, -0.4);
+	defaultPoints.addPoint( 0.10, -0.4);
+	this->points = defaultPoints;
+
+	Knots defaultKnots;
+	defaultKnots.insertKnot(0.05);
+	defaultKnots.insertKnot(0.1);
+	defaultKnots.insertKnot(0.2);
+	defaultKnots.insertKnot(0.33);
+	defaultKnots.insertKnot(0.66);
+	defaultKnots.insertKnot(0.8);
+	defaultKnots.insertKnot(0.9);
+	defaultKnots.insertKnot(0.95);
+	this->knots = defaultKnots;
+}
+
 
 void GLWidget::resizeGL(int width, int height)
 {
@@ -151,10 +211,15 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
         QPointF posF = transformPosition(pos);
         if (clickedKnot >= 0) {
             knots.setValueX(clickedKnot,posF.x());
+			if (this->drawCurve) {
+				drawBSplineCurve();
+			}
         }
         else {
-            points.setPointX(clickedPoint,posF.x());
-            points.setPointY(clickedPoint,posF.y());
+			if (!drawCurve) {
+				points.setPointX(clickedPoint,posF.x());
+				points.setPointY(clickedPoint,posF.y());
+			}
         }
         update();
     }
@@ -192,22 +257,9 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
 		// AUFGABE: Hier Knoten in eine B-Spline-Kurve einfügen.
 
 		// 1. de Boor
-		Points newPoints = deBoorStarter(this->points, this->knots, 1, newKnotIndex, knotsCopy.getValue(newKnotIndex));
+		deBoorStarter(this->points, this->knots, 1, newKnotIndex, knotsCopy.getValue(newKnotIndex));
 
-		// 2. neuen Punktearray erstellen
-		Points newPointList;
-		int i;
-
-		for (i=0; i<newKnotIndex-1-degree; i++) {
-			newPointList.addPoint(points.getPointX(i), points.getPointY(i));
-		}
-		for (int j=0; j<newPoints.getCount(); j++) {
-			newPointList.addPoint(newPoints.getPointX(j), newPoints.getPointY(j));
-		}
-		for (i+=(degree+1); i<points.getCount(); i++) {
-			newPointList.addPoint(points.getPointX(i), points.getPointY(i));
-		}
-		points = newPointList;
+		// 2. neue Knotenliste einsetzen
 		this->knots = knotsCopy;
     }
     update();
@@ -219,9 +271,7 @@ void GLWidget::keyPressEvent(QKeyEvent *e)
 	if (e->key() == Qt::Key_D) {
 		drawCurve = !drawCurve;
 		if (drawCurve) {
-			this->bezierPoints = this->points;
-			this->bezierKnots = this->knots;
-
+			drawBSplineCurve();
 			qDebug() << "Curve drawing on.\n";
 		} else {
 			qDebug() << "Curve drawing off.\n";
@@ -230,6 +280,10 @@ void GLWidget::keyPressEvent(QKeyEvent *e)
 	else if (e->key() == Qt::Key_R) {
 		resetPoints();
 		qDebug() << "Reset\n";
+	}
+	else if (e->key() == Qt::Key_3) {
+		setupThree();
+		qDebug() << "Setup with degree 3\n";
 	}
 
 	update();
@@ -246,6 +300,45 @@ void GLWidget::setEpsilonDraw(double value)
  * Implementierung rund um deBoor
  * #############################################################
  */
+void GLWidget::drawBSplineCurve()
+{
+	// Kopien erstellen
+	this->bezierPoints = this->points;
+	this->bezierKnots = this->knots;
+
+	// jeden Knoten auf die Vielfachheit 'degree' erhöhen
+	for (int i=degree; i<(bezierKnots.getCount()-degree); i++) {
+	//for (int i=degree+1; i<(bezierKnots.getCount()-degree); i++) {
+		float value = bezierKnots.getValue(i);
+
+		int count = 0;
+		while (bezierKnots.getValue(i+count) == value) {
+			count++;
+		}
+
+		if (count < degree) {
+			// Knoten gefunden, der noch nicht auf Vielfachheit degree ist
+			Knots fakeKnots = bezierKnots;
+			int index = fakeKnots.insertKnot(value, degree);
+
+			// => deBoor anwerfen
+			deBoorStarter(bezierPoints, bezierKnots, degree-count, index, value);
+		}
+		for (int j=0; j<degree-count; j++) {
+			bezierKnots.insertKnot(value, degree);
+		}
+
+		i += degree-1; // Überspringe die gerade eingefügten Knoten (und berücksichtige, dass die Schleife auch noch 1 addiert)!
+	}
+
+	// die ersten und letzten m-1 Knoten entfernen
+	for (int i=0; i<degree-1; i++) {
+		this->bezierPoints.removeFirst();
+		this->bezierPoints.removeLast();
+	}
+}
+
+
 
 /*
  * Startet den deBoor-Algorithmus und gibt das Ergebnis zurück.
@@ -254,9 +347,8 @@ void GLWidget::setEpsilonDraw(double value)
  * column - gibt an, welche Spalte aus dem Schema komplett verwendet wird
  * newKnot - INDEX des neu eingefügten Knotens
 
- * Rückgabewert: durch den deBoor-Algorithmus errechneten Punkte
  */
-Points GLWidget::deBoorStarter(Points &localPoints, Knots &localKnots, int multiplicity, int newKnotIndex, float newKnotValue)
+void GLWidget::deBoorStarter(Points &localPoints, Knots &localKnots, int multiplicity, int newKnotIndex, float newKnotValue)
 {
 	Points startingPoints, result;
 
@@ -268,7 +360,21 @@ Points GLWidget::deBoorStarter(Points &localPoints, Knots &localKnots, int multi
 	// 2. deBoor starten
 	deBoor(localKnots, startingPoints, multiplicity, newKnotIndex-1, newKnotValue, &result);
 
-	return result;
+	// 3. neue Punkte einfügen
+	Points newPointList;
+	int i;
+
+	for (i=0; i<newKnotIndex-1-degree; i++) {
+		newPointList.addPoint(localPoints.getPointX(i), localPoints.getPointY(i));
+	}
+	for (int j=0; j<result.getCount(); j++) {
+		newPointList.addPoint(result.getPointX(j), result.getPointY(j));
+	}
+	for (i+=(degree+1); i<localPoints.getCount(); i++) {
+		newPointList.addPoint(localPoints.getPointX(i), localPoints.getPointY(i));
+	}
+	localPoints = newPointList;
+
 }
 
 
@@ -281,6 +387,7 @@ Points GLWidget::deBoorStarter(Points &localPoints, Knots &localKnots, int multi
  * r - Index r
  * y - Wert des neu eingesetzten Knotens
  * *result - Ergebnispunkte
+
  */
 void GLWidget::deBoor(Knots &localKnots, Points ps, int k, int r, float y, Points *result)
 {

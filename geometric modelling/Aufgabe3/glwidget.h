@@ -22,7 +22,8 @@ protected:
 	void keyPressEvent		  (QKeyEvent *);
 private:
     QPointF transformPosition(QPoint p);
-	void resetPoints		 ();
+	void resetPoints		();
+	void setupThree			();
 
     float aspectx, aspecty;
     Points points;
@@ -30,14 +31,15 @@ private:
     int clickedPoint;
     int clickedKnot;
     float epsilon_draw;
-	bool drawCurve;
+	bool drawCurve;			// gibt an, ob die Kurve gezeichnet werden soll oder nicht
 	int degree;
 
 	// deBoor-Sachen
 	Points bezierPoints;
 	Knots bezierKnots;
 
-	Points deBoorStarter(Points &localPoints, Knots &localKnots, int multiplicity, int newKnotIndex, float newKnotValue);
+	void drawBSplineCurve();
+	void deBoorStarter(Points &localPoints, Knots &localKnots, int multiplicity, int newKnotIndex, float newKnotValue);
 	void deBoor(Knots &localKnots, Points ps, int k, int r, float t, Points *result);
 };
 

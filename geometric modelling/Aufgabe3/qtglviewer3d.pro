@@ -8,9 +8,11 @@ SOURCES += main.cpp \
     mainwindow.cpp \
     glwidget.cpp \
     points.cpp \
-    knots.cpp
+    knots.cpp \
+    bezier.cpp
 HEADERS += mainwindow.h \
     glwidget.h \
     points.h \
-    knots.h
+    knots.h \
+    bezier.h
 FORMS += mainwindow.ui
