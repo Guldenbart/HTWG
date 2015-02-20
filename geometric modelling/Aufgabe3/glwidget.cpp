@@ -108,6 +108,7 @@ void GLWidget::paintGL()
 				Points* pointsArray = new Points[degree+1];
 				int startIndex = i*degree;
 
+				// immer genügend Punkte für eine Bézier-Kurve sammeln
 				for (int j=0; j<degree+1; j++) {
 					pointsArray->addPoint(bezierPoints.getPointX(startIndex+j), bezierPoints.getPointY(startIndex+j));
 				}
@@ -131,7 +132,6 @@ void GLWidget::resetPoints()
 	drawCurve = false;
 	degree = 4;
 
-	// Hier Punkte hinzufügen: Schönere Startpositionen und anderer Grad!
 	Points defaultPoints;
 	defaultPoints.addPoint(-1.00,  0.5);
 	defaultPoints.addPoint(-0.30, -0.25);
@@ -158,7 +158,6 @@ void GLWidget::setupThree()
 	drawCurve = false;
 	degree = 3;
 
-	// Hier Punkte hinzufügen: Schönere Startpositionen und anderer Grad!
 	Points defaultPoints;
 	defaultPoints.addPoint(-1.00,  0.0);
 	defaultPoints.addPoint(-0.90,  0.3);
@@ -174,6 +173,33 @@ void GLWidget::setupThree()
 	defaultKnots.insertKnot(0.2);
 	defaultKnots.insertKnot(0.33);
 	defaultKnots.insertKnot(0.66);
+	defaultKnots.insertKnot(0.8);
+	defaultKnots.insertKnot(0.9);
+	defaultKnots.insertKnot(0.95);
+	this->knots = defaultKnots;
+}
+void GLWidget::setupFour()
+{
+	epsilon_draw = 0.05;
+	drawCurve = false;
+	degree = 4;
+
+	Points defaultPoints;
+	defaultPoints.addPoint( 0.00,  0.9);
+	defaultPoints.addPoint(-0.90,  0.3);
+	defaultPoints.addPoint(-0.50, -0.8);
+	defaultPoints.addPoint(-0.30,  0.0);
+	defaultPoints.addPoint( 1.00,  0.5);
+	defaultPoints.addPoint( 1.00, -0.8);
+	this->points = defaultPoints;
+
+	Knots defaultKnots;
+	defaultKnots.insertKnot(0.05);
+	defaultKnots.insertKnot(0.1);
+	defaultKnots.insertKnot(0.2);
+	defaultKnots.insertKnot(0.3);
+	defaultKnots.insertKnot(0.5);
+	defaultKnots.insertKnot(0.7);
 	defaultKnots.insertKnot(0.8);
 	defaultKnots.insertKnot(0.9);
 	defaultKnots.insertKnot(0.95);
@@ -212,11 +238,11 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
         if (clickedKnot >= 0) {
             knots.setValueX(clickedKnot,posF.x());
 			if (this->drawCurve) {
-				drawBSplineCurve();
+				drawBSplineCurve();	// Zeichnung der Kurve updaten
 			}
         }
         else {
-			if (!drawCurve) {
+			if (!drawCurve) {	// Kontrollpunkte dürfen nur bewegt werden, wenn die Kurve nicht gezeichnet wird
 				points.setPointX(clickedPoint,posF.x());
 				points.setPointY(clickedPoint,posF.y());
 			}
@@ -235,7 +261,7 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
         if (points.getDistance(clickedPoint,posF.x(),posF.y()) <=
              knots.getDistance(clickedKnot, posF.x(),posF.y()))
         { // point was clicked
-			if (!drawCurve) {
+			if (!drawCurve) {	// Kontrollpunkte dürfen nur bewegt werden, wenn die Kurve nicht gezeichnet wird
 				points.setPointX(clickedPoint,posF.x());
 				points.setPointY(clickedPoint,posF.y());
 				clickedKnot = -1;
@@ -261,10 +287,18 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
 
 		// 2. neue Knotenliste einsetzen
 		this->knots = knotsCopy;
+
+		// 3. Kurve neu berechnen, falls gewünscht!
+		if (this->drawCurve) {
+			drawBSplineCurve();
+		}
     }
     update();
 }
 
+/*
+ * Keyboard-Event Handler
+ */
 void GLWidget::keyPressEvent(QKeyEvent *e)
 {
 	//qDebug() << "KeyPressEvent\n";
@@ -285,6 +319,10 @@ void GLWidget::keyPressEvent(QKeyEvent *e)
 		setupThree();
 		qDebug() << "Setup with degree 3\n";
 	}
+	else if (e->key() == Qt::Key_4) {
+		setupFour();
+		qDebug() << "Secondary setup with degree 4\n";
+	}
 
 	update();
 }
@@ -292,6 +330,7 @@ void GLWidget::keyPressEvent(QKeyEvent *e)
 void GLWidget::setEpsilonDraw(double value)
 {
     epsilon_draw = value;
+	update();
 }
 
 
@@ -299,6 +338,11 @@ void GLWidget::setEpsilonDraw(double value)
  * #############################################################
  * Implementierung rund um deBoor
  * #############################################################
+ */
+
+/*
+ * Ist dafür verantwortlich, dass die Knoten und Punkte für die Bézier-Darstellung
+ * richtig berechnet werden
  */
 void GLWidget::drawBSplineCurve()
 {
@@ -308,23 +352,17 @@ void GLWidget::drawBSplineCurve()
 
 	// jeden Knoten auf die Vielfachheit 'degree' erhöhen
 	for (int i=degree; i<(bezierKnots.getCount()-degree); i++) {
-	//for (int i=degree+1; i<(bezierKnots.getCount()-degree); i++) {
 		float value = bezierKnots.getValue(i);
 
-		int count = 0;
-		while (bezierKnots.getValue(i+count) == value) {
-			count++;
-		}
+		// Index herausfinden, bei dem der Knoten eingefügt werden wird
+		Knots fakeKnots = bezierKnots;
+		int index = fakeKnots.insertKnot(value, degree);
 
-		if (count < degree) {
-			// Knoten gefunden, der noch nicht auf Vielfachheit degree ist
-			Knots fakeKnots = bezierKnots;
-			int index = fakeKnots.insertKnot(value, degree);
+		// => deBoor anwerfen
+		deBoorStarter(bezierPoints, bezierKnots, degree-1, index, value);
 
-			// => deBoor anwerfen
-			deBoorStarter(bezierPoints, bezierKnots, degree-count, index, value);
-		}
-		for (int j=0; j<degree-count; j++) {
+		// Knoten tatsächlich einfügen
+		for (int j=0; j<degree-1; j++) {
 			bezierKnots.insertKnot(value, degree);
 		}
 
@@ -337,7 +375,6 @@ void GLWidget::drawBSplineCurve()
 		this->bezierPoints.removeLast();
 	}
 }
-
 
 
 /*
@@ -409,11 +446,7 @@ void GLWidget::deBoor(Knots &localKnots, Points ps, int k, int r, float y, Point
 
 		int i = (r-ps.getCount()+loop+2);
 		int j = degree-ps.getCount()+2;
-		//float z = t-knots.getValue(i);
-		//float n = (knots.getValue(degree+i+1.0-j)-knots.getValue(i));
 		float alpha = (y-localKnots.getValue(i))/(localKnots.getValue(degree+i+1-j)-localKnots.getValue(i));
-		//float alpha = (y-localKnots.getValue(i))/(localKnots.getValue(degree+i)-localKnots.getValue(i));
-		//float alpha = z/n;
 
 		pf.setX((1-alpha)*ps.getPointX(loop) + alpha*ps.getPointX(loop+1));
 		pf.setY((1-alpha)*ps.getPointY(loop) + alpha*ps.getPointY(loop+1));

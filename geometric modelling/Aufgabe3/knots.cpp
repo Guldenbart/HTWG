@@ -30,6 +30,9 @@ Knots &Knots::operator = (const Knots &ks)
 	}
 }
 
+/*
+ * Funktion zum Einfügen der Start-Knoten
+ */
 void Knots::insertKnot(float value)
 {
 	if (value < 0.0 || value > 1.0) return;
@@ -53,6 +56,15 @@ void Knots::insertKnot(float value)
 	}
 }
 
+/*
+ * Funktion zum online-Einfügen von Knoten
+ *
+ * Parameter:
+ * value:	Wert des Knotens (0<= value <= 1)
+ * degree:	Grad der Kurve
+ *
+ * Rückgabewert: Index, an dem der Knoten eingefügt wurde. -1, wenn er nicht eingefügt wurde.
+ */
 int Knots::insertKnot(float value, int degree)
 {
 	if (value < 0.0 || value > 1.0) return -1;

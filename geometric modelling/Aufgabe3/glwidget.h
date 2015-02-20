@@ -24,6 +24,7 @@ private:
     QPointF transformPosition(QPoint p);
 	void resetPoints		();
 	void setupThree			();
+	void setupFour			();
 
     float aspectx, aspecty;
     Points points;
