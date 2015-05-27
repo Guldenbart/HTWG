@@ -5,9 +5,16 @@
 class Knots : public Points
 {
 public:
+	// constructors
     Knots();
-	int insertKnot(float value);
-	int insertKnotX(float x);
+	Knots(const Knots &ks);			// copy constructor
+
+	// assignment operator
+	Knots &operator = (const Knots &ks);
+
+	void insertKnot(float value);
+	int insertKnot(float value, int degree);
+	int insertKnotX(float x, int degree);
     void setValueX(int i, float x);
     float getValue(int i);
 };

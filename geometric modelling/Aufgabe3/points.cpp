@@ -1,7 +1,29 @@
 #include "points.h"
 
+// constructor
 Points::Points()
 {
+}
+
+// copy constuctor
+Points::Points(const Points &ps)
+{
+	if (this==&ps) {
+		return; // nothing to do, it's me
+	}
+
+	*this = ps;
+}
+
+// assignment operator
+Points &Points::operator = (const Points &ps)
+{
+	if (this != &ps) {
+		this->pointlist.clear();
+		for (int i = 0; i < ps.pointlist.size(); i++) {
+			this->pointlist.append( QPointF(ps.pointlist.at(i).x(), ps.pointlist.at(i).y()) );
+		}
+	}
 }
 
 void Points::addPoint(float x,float y)
@@ -61,4 +83,14 @@ void Points::moveClosestPoint(float x, float y, float tox, float toy)
     int pntnum = getClosestPoint(x,y);
     pointlist[pntnum].setX(tox);
     pointlist[pntnum].setY(toy);
+}
+
+void Points::removeFirst()
+{
+	pointlist.removeFirst();
+}
+
+void Points::removeLast()
+{
+	pointlist.removeLast();
 }
