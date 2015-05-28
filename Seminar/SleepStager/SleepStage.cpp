@@ -1,8 +1,11 @@
+#include "SleepStage.h"
+
 #include <QString>
 #include <QDebug>
 #include <QFile>
 
-#include "SleepStage.h"
+#include <math.h>
+
 
 /*
  * default-constructor
@@ -45,6 +48,7 @@ int SleepStage::readECGInput(QString path)
 
     char buf[32];
     int counter = 0;
+    int progressCounter = 12956; // (number of values to calculate: 129596)
 
     while (!file.atEnd()) {
         double sum = 0.0;
@@ -64,6 +68,10 @@ int SleepStage::readECGInput(QString path)
         this->ECGInput.append(sum/static_cast<double>(63-(counter%2)));
 
         counter++;
+        if (counter > progressCounter) {
+            qDebug() << "Progress: " << static_cast<int>(ceil((static_cast<double>(progressCounter)/static_cast<double>(ECGInputSize))*100)) << "%";
+            progressCounter += 12956;
+        }
     }
 
     file.close();
@@ -96,9 +104,9 @@ int SleepStage::readHypnoInput(QString path)
 
     while (!file.atEnd()) {
 
-        file.readLine(buf, sizeof(buf));
+        qint64 lineSize = file.readLine(buf, sizeof(buf));
         QString line(buf);
-        char annotation = line.at(line.size()-1).toLatin1();
+        char annotation = line.at(lineSize-3).toLatin1(); // we have to skip the last 3 characters ('\r', '\n', '\0')
 
         // We have one annotation for every 30 sec. But we need 4 per second
         for (int i=0; i<120; i++) {

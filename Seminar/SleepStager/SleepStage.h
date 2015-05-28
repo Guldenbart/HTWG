@@ -20,6 +20,8 @@ class SleepStage
 	// functions
 
 	// vars
+        const int ECGInputSize = 129596;
+
         QList<double> ECGInput;		// ECG data, already downsampled
         QList<char> hypnoInput;		// already prescored hypnogram
                                     /*
