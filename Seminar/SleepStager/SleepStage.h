@@ -15,13 +15,22 @@ class SleepStage
         ~SleepStage();                      // destructor
         int readECGInput(QString path);     // read the ECG from file
         int readHypnoInput(QString path);   // read the hypnogram from file
+		int fftCalculation();               // do FFT and calculate the required values
+		int postFft();                      // some calculations that have to be done after FFT
 
 	private:
 	// functions
 
-	// vars
-        const int ECGInputSize = 129596;
+	// constants
+		const int ECG_INPUT_SIZE= 129596;
+		const int FFT_SIZE      = 4096;
+		const int FFT_HALF_SIZE	= 2048;
+		const int LF_START      = 41;
+		const int LF_END        = 154;
+		const int HF_START      = 155;
+		const int HF_END        = 410;
 
+	// vars
         QList<double> ECGInput;		// ECG data, already downsampled
         QList<char> hypnoInput;		// already prescored hypnogram
                                     /*
@@ -34,7 +43,7 @@ class SleepStage
         QList<double> FFTResult;		// result from calculating FFT from 'hypnoInput'
         QList<double> lfhfRatio;        // calculated LF/HF ratio for every second
         QList<double> relativePowerHF;  // the calculated relative peak frequency power within the HF band
-        QList<double> varHF;			// the variablity of the peak frequency power within the HF band
+		QList<double> variabilityHF;	// the variablity of the peak frequency power within the HF band
 		
         QList<char>	hypnogram;  		// self-calculated hypnogram
 };

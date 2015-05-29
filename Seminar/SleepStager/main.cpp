@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     */
 
     const std::size_t SIZE = 16;
-    const Aquila::FrequencyType sampleFreq = 320;
+	const Aquila::FrequencyType sampleFreq = 160;
     const Aquila::FrequencyType f1 = 30;
 
     Aquila::SineGenerator sineGenerator1 = Aquila::SineGenerator(sampleFreq);
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 
     // calculate the FFT
     auto fft = Aquila::FftFactory::getFft(SIZE);
-    //const Aquila::SampleType* st = sum.toArray();
+	//const Aquila::SampleType* st = sum.toArray();
     Aquila::SpectrumType spectrum = fft->fft(sum.toArray());
 
     plt.setTitle("Spectrum");

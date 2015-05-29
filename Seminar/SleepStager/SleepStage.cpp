@@ -5,7 +5,11 @@
 #include <QFile>
 
 #include <math.h>
+#include <complex>
 
+#include "aquila/global.h"
+#include "aquila/transform/FftFactory.h"
+//#include "aquila/source/generator/SineGenerator.h"
 
 /*
  * default-constructor
@@ -69,7 +73,7 @@ int SleepStage::readECGInput(QString path)
 
         counter++;
         if (counter > progressCounter) {
-            qDebug() << "Progress: " << static_cast<int>(ceil((static_cast<double>(progressCounter)/static_cast<double>(ECGInputSize))*100)) << "%";
+            qDebug() << "Progress: " << static_cast<int>(ceil((static_cast<double>(progressCounter)/static_cast<double>(ECG_INPUT_SIZE))*100)) << "%";
             progressCounter += 12956;
         }
     }
@@ -128,4 +132,64 @@ int SleepStage::readHypnoInput(QString path)
     }
 
     return 0;
+}
+
+
+/*
+ * fftCalculation
+ *
+ * calculates FFT for every 4096 samples and calculates all values necessary for sleep stage classification
+ *
+ * return: error value
+ */
+int SleepStage::fftCalculation()
+{
+	double sumLF = 0.0;
+	double sumHF = 0.0;
+	double minHF = 1000.0;
+	double maxHF = -1000.0;
+
+
+	for (int i=0; i<(this->ECG_INPUT_SIZE-this->FFT_SIZE); i++) {
+
+		// set up FFT
+		auto fft = Aquila::FftFactory::getFft(this->FFT_SIZE);
+
+		double* sampleArray = new double[this->FFT_SIZE];
+		for (int j=0; j<this->FFT_SIZE; j++) {
+			sampleArray[j] = this->ECGInput[i+j];
+		}
+
+		const Aquila::SampleType* st = sampleArray;
+		Aquila::SpectrumType fftResult = fft->fft(st);
+
+		double* spectrum = new double[fftResult.size()];
+		for (unsigned int j=0; j<fftResult.size(); j++) {
+			std::complex<double> complexTmp = fftResult.at(j);
+			spectrum[j] = std::abs(complexTmp);
+			// irgendeine Form der Korrektur?
+		}
+
+		// get sumLF and sumHF
+		for (int j=this->LF_START; j<this->LF_END; j++) {
+			sumLF = spectrum[j];
+		}
+		for (int j=this->HF_START; j<this->HF_END; j++) {
+			sumHF = spectrum[j];
+			if (spectrum[j] < minHF) {
+				minHF = spectrum[j];
+			}
+			if (spectrum[j] > maxHF) {
+				maxHF = spectrum[j];
+			}
+		}
+
+		// add the values to their respective QList
+		this->lfhfRatio.append(sumLF/sumHF);
+		this->relativePowerHF.append(maxHF/sumHF);
+		this->variabilityHF.append(maxHF-minHF);
+
+	}
+
+	return 0;
 }
