@@ -8,6 +8,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 }
 
+void MainWindow::addQwtPlot(QwtPlot* plot)
+{
+	ui->plotLayout->addWidget(plot);
+}
+
+
 MainWindow::~MainWindow()
 {
     delete ui;
