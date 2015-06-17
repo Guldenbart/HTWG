@@ -6,6 +6,7 @@
 #define SLEEPSTAGE_H
 
 #include <QList>
+#include <QMap>
 
 class SleepStage
 {
@@ -13,6 +14,8 @@ class SleepStage
 
         SleepStage();                       // default-Constructor
         ~SleepStage();                      // destructor
+
+		QList<int> getLatestHypnogram();
 
         int readECGInput(QString path);     // read the ECG from file
 		int detectRPeaks();					// detects all R peaks from ECG data
@@ -29,6 +32,7 @@ class SleepStage
 		int getRelativePowerHfForPlot(double*& x, double*& y);
 		int getVariabilityHfForPlot(double*& x, double*& y);
 		int getHypnogramForPlot(double*& x, double*& y);
+		int getHypnogramForPlot(double*& x, double*& y, QList<int> hypno);
 
 	private:
 	// functions
@@ -37,11 +41,11 @@ class SleepStage
 		const int ECG_INPUT_SIZE= 129596;
 		const int FFT_SIZE      = 4096;
 		const int FFT_HALF_SIZE	= 2048;
-		const double R_THRESH	= 0.47;
+		const double R_THRESH	= 0.35;
 		const int LF_START      = 41;
-		const int LF_END        = 154;
+		const int LF_END        = 155;
 		const int HF_START      = 155;
-		const int HF_END        = 410;
+		const int HF_END        = 411;
 
 	// vars
 		QList<double> ECGInput;		// ECG data; one value each .004 sec
@@ -66,6 +70,7 @@ class SleepStage
 		double relativePowerHF_90;
 		
 		QList<int>	hypnogram;  		// self-calculated hypnogram
+		QList<int>	latestHypnogram;		// last self scored hypnogrma
 };
 
 #endif // SLEEPSTAGE_H

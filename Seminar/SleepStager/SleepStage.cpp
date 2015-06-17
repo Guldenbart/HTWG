@@ -3,7 +3,6 @@
 #include <QString>
 #include <QDebug>
 #include <QFile>
-#include <QMap>
 #include <QProgressDialog>
 
 #include <math.h>
@@ -27,6 +26,12 @@ SleepStage::SleepStage()
 SleepStage::~SleepStage()
 {
 
+}
+
+
+QList<int> SleepStage::getLatestHypnogram()
+{
+	return this->latestHypnogram;
 }
 
 
@@ -384,26 +389,13 @@ double SleepStage::evaluateThresholds(double d, double e, double f, double best)
 {
 	QList<int> ownHypno; // our own sleep stage classification for the three given parameters
 
-	int counter_wake, counter_wakeRem, counter_rem, counter_nrem12, counter_nrem34;
-	counter_wake = counter_wakeRem = counter_rem = counter_nrem12 = counter_nrem34 = 0;
-
 	// first parameter: LF/HF ratio
-	for (int i=0; (i+1)*120 < this->LfHfRatio.size(); i++) {
-		for (int j=0; j<120; j++) {
-			if (this->LfHfRatio.at((i*120)+j) >= d) {
-				counter_wakeRem++;
-			} else {
-				counter_nrem34++;
-			}
-		}
-		// see, which sleep stage is prevelant in this 30 secs
-		if (counter_wakeRem >= counter_nrem34) {
+	for (int i=0; i < this->LfHfRatio.size(); i++) {
+		if (this->LfHfRatio.at(i) >= d) {
 			ownHypno.append(1);
 		} else {
 			ownHypno.append(-3);
 		}
-
-		counter_wakeRem = counter_nrem34 = 0; // reset counters
 	}
 
 	// second parameter: relative power HF
@@ -412,20 +404,10 @@ double SleepStage::evaluateThresholds(double d, double e, double f, double best)
 			// we only care about epochs that were previously marked as 'wake or REM'
 			continue;
 		}
-		for (int j=0; j<120; j++) {
-			if (this->relativePowerHF.at((i*120)+j) >= e) {
-				counter_wakeRem++;
-			} else {
-				counter_nrem12++;
-			}
-		}
 
-		// see, which sleep stage is prevelant in this 30 secs
-		if (counter_nrem12 >= counter_wakeRem) {
+		if (this->relativePowerHF.at(i) <= e) {
 			ownHypno[i] = -2;
 		}
-
-		counter_nrem12 = counter_wakeRem = 0; // reset counters
 	}
 
 	// third parameter: variability HF
@@ -434,30 +416,23 @@ double SleepStage::evaluateThresholds(double d, double e, double f, double best)
 			// we only care about epochs that were previously marked as 'wake or REM'
 			continue;
 		}
-		for (int j=0; j<120; j++) {
-			if (this->variabilityHF.at((i*120)+j) >= f) {
-				counter_rem++;
-			} else {
-				counter_wake++;
-			}
-		}
 
-		// see, which sleep stage is prevelant in this 30 secs
-		if (counter_wake >= counter_rem) {
-			ownHypno[i] = 0;
-		} else {
+		if (this->variabilityHF.at(i) >= f) {
 			ownHypno[i] = -1;
+		} else {
+			ownHypno[i] = 0;
 		}
 	}
 
 	// now that we did all the classifying, let's see how good it was:
 	int accordanceCounter = 0;
 	for (int i=0; i<ownHypno.size(); i++) {
-		if (ownHypno.at(i) == this->hypnoInput.at(i)) {
+		if (ownHypno.at(i) == this->hypnoInput.at( (i-(i%120))/120 )) {
 			accordanceCounter++;
 		}
 	}
 
+	this->latestHypnogram = ownHypno;
 	// check if we have a new 'best result'
 	double accordance = static_cast<double>(accordanceCounter)/static_cast<double>(ownHypno.size());
 	if (accordance > best) {
@@ -637,9 +612,23 @@ int SleepStage::getHypnogramForPlot(double *&x, double *&y)
 	y = new double[this->hypnogram.size()];
 
 	for (int i=0; i<this->hypnogram.size(); i++) {
-		x[i] = static_cast<double>(i)*30.0;
+		x[i] = static_cast<double>(i)*0.25;
 		y[i] = this->hypnogram[i];
 	}
 
 	return this->hypnogram.size();
+}
+
+
+int SleepStage::getHypnogramForPlot(double *&x, double *&y, QList<int> hypno)
+{
+	x = new double[hypno.size()];
+	y = new double[hypno.size()];
+
+	for (int i=0; i<hypno.size(); i++) {
+		x[i] = static_cast<double>(i)*0.25;
+		y[i] = hypno[i];
+	}
+
+	return hypno.size();
 }

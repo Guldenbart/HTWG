@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
 
 	// plot BPM data
-	/*
+
 	int size_BPM = ss->getBPMForPlot(x_BPM, y_BPM);
 
 	QwtPlot plot_BPM(QwtText(QString("BPM data")));
@@ -77,9 +77,9 @@ int main(int argc, char *argv[])
 	curve_BPM->setPen(QPen(Qt::black));
 	curve_BPM->attach(&plot_BPM);
 	plot_BPM.setAxisScale(2, 0.0, 33000.0);
-	w.addQwtPlot(&plot_BPM);
+	//w.addQwtPlot(&plot_BPM);
 	plot_BPM.show();
-	*/
+
 
 	// plot LF/HF ratio data
 	int size_LfHfRatio = ss->getLfHfRatioForPlot(x_LFHF, y_LFHF);
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 	x = new double[2];
 	y = new double[2];
 	x[0] = 0.0; x[1] = 32000.0;
-	y[0] = y[1] = 1.3;
+	y[0] = y[1] = 1.4;
 	QwtPlotCurve *line_thresh = new QwtPlotCurve();
 	line_thresh->setRawSamples(x, y, 2);
 	line_thresh->setPen(QPen(Qt::red));
@@ -155,19 +155,25 @@ int main(int argc, char *argv[])
 	w.addQwtPlot(&plot_hypIn);
 	plot_hypIn.show();
 
-	double d[11] = {1.30, 1.32, 1.34, 1.36, 1.38, 1.40, 1.42, 1.44, 1.46, 1.48, 1.50};
+	double d[21] = {1.30, 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37, 1.38, 1.39, 1.40, 1.41, 1.42, 1.43, 1.44, 1.45, 1.455, 1.46, 1.48, 1.50, 1.52};
 	double e[11] = {0.010, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019, 0.020};
 	double f[11] = {50.0, 65.0, 80.0, 90.0, 100.0, 150.0, 200.0, 350.0, 450.0, 500.0, 600.0};
 	double best = 0.0;
+	QMap<double, QList<double> >results;
+	QMap<double, QList<int> >hypnoList;
 	std::ofstream fout("C://HTWG//HTWG//Seminar//results.txt");
 	fout << "LF/HF ratio" << '\t' << "rel.power HF" << '\t' << "var HF" << "\t\t" << "result:\n";
 
-	for (int i=0; i<11; i++) {
+	for (int i=0; i<21; i++) {
 		for (int j=0; j<11; j++) {
 			for (int k=0; k<11; k++) {
 				double result = ss->evaluateThresholds(d[i], e[j], f[k], best);
 				qDebug() << i<< " | " << j << " | " << k;
 				fout << d[i] << "\t\t" << e[j] << "\t\t" << f[k] << "\t\t" << result << '\n';
+
+				hypnoList.insert(result, ss->getLatestHypnogram());
+				QList<double> indices = {d[i], e[j], f[k]};
+				results.insert(result, indices);
 				best = std::max(result, best);
 			}
 		}
@@ -188,6 +194,75 @@ int main(int argc, char *argv[])
 	plot_hyp.setAxisScale(0, -3.0, 0.0, 1.0);
 	w.addQwtPlot(&plot_hyp);
 	plot_hyp.show();
+
+
+	/*
+	 * plot threshold values in the three diagrams
+	 * structure:	x for LH/HF ratio Nr1
+	 *				y for "	"	"	"
+	 *				x for rel power HF Nr1
+	 *				....
+	 */
+	QMapIterator<double, QList<double> > it_results(results);
+	it_results.toBack();
+	it_results.previous();
+
+	double** thresholds = new double*[18];
+	for (int i=0; i<18; i+=2) {
+		thresholds[i] = new double[2];
+		thresholds[i][0] = 0.0;
+		thresholds[i][1] = 32000.0;
+	}
+	for (int i=0; i<9; i++) {
+		thresholds[i*2+1] = new double[2];
+		thresholds[i*2+1][0] = thresholds[i*2+1][1] = (it_results.value()).at(i%3);
+
+		if (i%3 == 2) {
+			it_results.previous();
+		}
+	}
+
+	/*
+	for (int i=0; i<3; i++) {
+		QwtPlotCurve *line_thresh = new QwtPlotCurve();
+		line_thresh->setRawSamples(thresholds[i*6], thresholds[i*6+1], 2);
+		line_thresh->setPen(QPen(QColor(7+i)));
+		line_thresh->attach(&plot_LfHfRatio);
+	}
+
+	for (int i=0; i<3; i++) {
+		QwtPlotCurve *line_thresh = new QwtPlotCurve();
+		line_thresh->setRawSamples(thresholds[i*6+2], thresholds[i*6+3], 2);
+		line_thresh->setPen(QPen(QColor(7+i)));
+		line_thresh->attach(&plot_relativePowerHF);
+	}
+
+	for (int i=0; i<3; i++) {
+		QwtPlotCurve *line_thresh = new QwtPlotCurve();
+		line_thresh->setRawSamples(thresholds[i*6+4], thresholds[i*6+5], 2);
+		line_thresh->setPen(QPen(QColor(7+i)));
+		line_thresh->attach(&plot_varHF);
+	}
+	*/
+
+	QMapIterator<double, QList<int> > it_hypnoList(hypnoList);
+	it_hypnoList.toBack();
+	it_hypnoList.previous();
+	for (int i=0; i<4; i++, it_hypnoList.previous()) {
+		// plot MORE self scored hypnograms
+		double *x_hyp, *y_hyp;
+		int size_hyp = ss->getHypnogramForPlot(x_hyp, y_hyp, it_hypnoList.value());
+
+		QwtPlot plot_hyp(QwtText(QString("self-scored hypnogram Nr.").append(QString::number(i))));
+		QwtPlotCurve *curve_hyp = new QwtPlotCurve();
+
+		curve_hyp->setRawSamples(x_hyp, y_hyp, size_hyp);
+		curve_hyp->setPen(QPen(Qt::darkBlue));
+		curve_hyp->attach(&plot_hyp);
+		plot_hyp.setAxisScale(2, 0.0, 33000.0);
+		plot_hyp.setAxisScale(0, -3.0, 0.0, 1.0);
+		plot_hyp.show();
+	}
 
 	// start the program
     return a.exec();
