@@ -2,10 +2,14 @@
 #include "SleepStage.h"
 
 #include <QApplication>
-#include <qwt_plot.h>
-#include <qwt_plot_curve.h>
+#include <QDateTime>
+#include <QProgressDialog>
 
 #include <fstream>
+#include <string>
+
+#include <qwt_plot.h>
+#include <qwt_plot_curve.h>
 
 #include "aquila/global.h"
 #include "aquila/source/generator/SineGenerator.h"
@@ -18,36 +22,38 @@ int main(int argc, char *argv[])
     MainWindow w;
     w.show();
 
+	int retVal = 0;
+	SleepStage *ss = new SleepStage();
 
-	/*
-    const std::size_t SIZE = 16;
-	const Aquila::FrequencyType sampleFreq = 160;
-    const Aquila::FrequencyType f1 = 30;
+	retVal = ss->readECGInput("C://HTWG//HTWG//Seminar//ECG.csv");
+	if (retVal < 0) {
+		qDebug() << "Couldn't read ECG input file!";
+		delete ss;
+		return retVal;
+	}
 
-    Aquila::SineGenerator sineGenerator1 = Aquila::SineGenerator(sampleFreq);
-    sineGenerator1.setAmplitude(5).setFrequency(f1).generate(SIZE);
-    Aquila::SignalSource sum = sineGenerator1;
+	retVal = ss->readHypnoInput("C:/HTWG/HTWG/Seminar/annotations.txt");
+	if (retVal < 0) {
+		qDebug() << "Couldn't read hypnogram input file!";
+		delete ss;
+		return retVal;
+	}
 
+	retVal = ss->detectRPeaks();
+	if (retVal < 0) {
+		qDebug() << "R peak detection failed!";
+		delete ss;
+		return retVal;
+	}
 
-	Aquila::TextPlot aPlt("Input signal");
-	aPlt.plot(sum);
+	retVal = ss->getBPM();
+	if (retVal < 0) {
+		qDebug() << "heart rate calculation failed!";
+		delete ss;
+		return retVal;
+	}
 
-    // calculate the FFT
-    auto fft = Aquila::FftFactory::getFft(SIZE);
-	//const Aquila::SampleType* st = sum.toArray();
-    Aquila::SpectrumType spectrum = fft->fft(sum.toArray());
-
-	aPlt.setTitle("Spectrum");
-	aPlt.plotSpectrum(spectrum);
-	*/
-
-
-    SleepStage *ss = new SleepStage();
-	ss->readECGInput("C://HTWG//HTWG//Seminar//ECG.csv");
-	ss->readHypnoInput("C:/HTWG/HTWG/Seminar/annotations.txt");
-	ss->detectRPeaks();
-	ss->getBPM();
-	ss->fftCalculation();
+	ss->fftCalculation(0.5);
 
 	double* x_ECG, *y_ECG, *x_BPM, *y_BPM, *x_LFHF, *y_LFHF, *x_relHF, *y_relHF, *x_varHF, *y_varHF, *x_hypIn, *y_hypIn, *x_hyp, *y_hyp;
 
@@ -87,16 +93,6 @@ int main(int argc, char *argv[])
 	QwtPlot plot_LfHfRatio(QwtText(QString("LF/HF ratio")));
 	QwtPlotCurve *curve_LfHfRatio = new QwtPlotCurve();
 
-	double *x, *y;
-	x = new double[2];
-	y = new double[2];
-	x[0] = 0.0; x[1] = 32000.0;
-	y[0] = y[1] = 1.4;
-	QwtPlotCurve *line_thresh = new QwtPlotCurve();
-	line_thresh->setRawSamples(x, y, 2);
-	line_thresh->setPen(QPen(Qt::red));
-	line_thresh->attach(&plot_LfHfRatio);
-
 	curve_LfHfRatio->setRawSamples(x_LFHF, y_LFHF, size_LfHfRatio);
 	curve_LfHfRatio->setPen(QPen(Qt::gray));
 	curve_LfHfRatio->attach(&plot_LfHfRatio);
@@ -111,13 +107,6 @@ int main(int argc, char *argv[])
 	QwtPlot plot_relativePowerHF(QwtText(QString("relative power of the HF band")));
 	QwtPlotCurve *curve_relativePowerHF = new QwtPlotCurve();
 
-	/*
-	y[0] = y[1] = 0.02;
-	line_thresh = new QwtPlotCurve();
-	line_thresh->setRawSamples(x, y, 2);
-	line_thresh->setPen(QPen(Qt::red));
-	line_thresh->attach(&plot_relativePowerHF);
-	*/
 
 	curve_relativePowerHF->setRawSamples(x_relHF, y_relHF, size_relativePowerHF);
 	curve_relativePowerHF->setPen(QPen(Qt::green));
@@ -155,29 +144,51 @@ int main(int argc, char *argv[])
 	w.addQwtPlot(&plot_hypIn);
 	plot_hypIn.show();
 
-	double d[21] = {1.30, 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37, 1.38, 1.39, 1.40, 1.41, 1.42, 1.43, 1.44, 1.45, 1.455, 1.46, 1.48, 1.50, 1.52};
-	double e[11] = {0.010, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019, 0.020};
-	double f[11] = {50.0, 65.0, 80.0, 90.0, 100.0, 150.0, 200.0, 350.0, 450.0, 500.0, 600.0};
+
+	QList<double> d1, d2, e, f;
+	d1 << 1.00 << 1.05 << 1.10 << 1.15 << 1.20 << 1.25 << 1.30 << 1.35 << 1.40 << 1.45 << 1.50;
+	d2 << 0.1 << 0.15 << 0.2 << 0.25 << 0.3 << 0.35 << 0.4 << 0.45 << 0.5 << 0.55 << 0.6 << 0.65 << 0.7 << 0.75 << 0.8 << 0.85 << 0.9 << 0.95 << 1.0;
+	e << 0.010 << 0.011 << 0.012 << 0.013 << 0.014 << 0.015 << 0.016 << 0.017 << 0.018 << 0.019 << 0.020;
+	f << 50.0 << 65.0 << 80.0 << 90.0 << 100.0 << 120.0 << 150.0 << 200.0 << 350.0 << 450.0 << 500.0 << 600.0;
 	double best = 0.0;
 	QMap<double, QList<double> >results;
-	QMap<double, QList<int> >hypnoList;
-	std::ofstream fout("C://HTWG//HTWG//Seminar//results.txt");
-	fout << "LF/HF ratio" << '\t' << "rel.power HF" << '\t' << "var HF" << "\t\t" << "result:\n";
+	QMap<double, QList<int> >hypnoMap;
+	QDateTime now = QDateTime::currentDateTime();
+	std::string filename = "C://HTWG//HTWG//Seminar//results_" + ((now.date().toString("dd.MM.yyyy"))).toStdString() +".txt";
+	std::ofstream fout(filename);
+	fout << "value for the threshold: " << 50 << " percent\n";
+	fout << "LF/HF ratio" << '\t' << "upper limit" << '\t' << "rel.power HF" << '\t' << "var HF" << "\t\t" << "result:\n";
 
-	for (int i=0; i<21; i++) {
-		for (int j=0; j<11; j++) {
-			for (int k=0; k<11; k++) {
-				double result = ss->evaluateThresholds(d[i], e[j], f[k], best);
-				qDebug() << i<< " | " << j << " | " << k;
-				fout << d[i] << "\t\t" << e[j] << "\t\t" << f[k] << "\t\t" << result << '\n';
+	QProgressDialog progress("evaluating thresholds", "Cancel [don't!]", 0, (d1.size()*d2.size()*e.size()*f.size()));
+	progress.setWindowTitle("Evaluating...");
+	progress.setWindowModality(Qt::ApplicationModal);
+	progress.setWindowFlags(Qt::Tool);
+	int progressCounter = 0;
 
-				hypnoList.insert(result, ss->getLatestHypnogram());
-				QList<double> indices = {d[i], e[j], f[k]};
-				results.insert(result, indices);
-				best = std::max(result, best);
+	for (int i=0; i<d1.size(); i++) {
+		for (int j=0; j<d2.size(); j++) {
+			for (int k=0; k<e.size(); k++) {
+				for (int l=0; l<f.size(); l++) {
+					double result = ss->evaluateThresholds(d1.at(i), d2.at(j), e.at(k), f.at(l), best);
+					qDebug() << i<< " | " << j << " | " << k << " | " << l;
+					fout << d1.at(i) << "\t\t" << d2.at(j) << "\t\t" << e.at(k) << "\t\t" << f.at(l) << "\t\t" << result << '\n';
+
+					hypnoMap.insert(result, ss->getLatestHypnogram());
+					QList<double> indices = {d1.at(i), d2.at(j), e.at(k), f.at(l)};
+					results.insert(result, indices);
+					best = std::max(result, best);
+
+					progress.setValue(++progressCounter);
+				}
 			}
 		}
 	}
+
+	QMapIterator<double, QList<double> > it_results(results);
+	it_results.toBack();
+	it_results.previous();
+
+	fout << "Best result:\n" << it_results.value().at(0) << "\t\t" << it_results.value().at(1) << "\t\t" << it_results.value().at(2) << "\t\t" << it_results.value().at(3) << "\t\t" << it_results.key();
 
 	fout.close();
 
@@ -203,10 +214,6 @@ int main(int argc, char *argv[])
 	 *				x for rel power HF Nr1
 	 *				....
 	 */
-	QMapIterator<double, QList<double> > it_results(results);
-	it_results.toBack();
-	it_results.previous();
-
 	double** thresholds = new double*[18];
 	for (int i=0; i<18; i+=2) {
 		thresholds[i] = new double[2];
@@ -245,24 +252,6 @@ int main(int argc, char *argv[])
 	}
 	*/
 
-	QMapIterator<double, QList<int> > it_hypnoList(hypnoList);
-	it_hypnoList.toBack();
-	it_hypnoList.previous();
-	for (int i=0; i<4; i++, it_hypnoList.previous()) {
-		// plot MORE self scored hypnograms
-		double *x_hyp, *y_hyp;
-		int size_hyp = ss->getHypnogramForPlot(x_hyp, y_hyp, it_hypnoList.value());
-
-		QwtPlot plot_hyp(QwtText(QString("self-scored hypnogram Nr.").append(QString::number(i))));
-		QwtPlotCurve *curve_hyp = new QwtPlotCurve();
-
-		curve_hyp->setRawSamples(x_hyp, y_hyp, size_hyp);
-		curve_hyp->setPen(QPen(Qt::darkBlue));
-		curve_hyp->attach(&plot_hyp);
-		plot_hyp.setAxisScale(2, 0.0, 33000.0);
-		plot_hyp.setAxisScale(0, -3.0, 0.0, 1.0);
-		plot_hyp.show();
-	}
 
 	// start the program
     return a.exec();

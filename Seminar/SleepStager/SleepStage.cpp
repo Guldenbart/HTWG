@@ -13,7 +13,7 @@
 //#include "aquila/source/generator/SineGenerator.h"
 
 /*
- * default-constructor
+ * default constructor
  */
 SleepStage::SleepStage()
 {
@@ -28,7 +28,11 @@ SleepStage::~SleepStage()
 
 }
 
-
+/*
+ * getLatestHypnogram
+ *
+ * return: the last calculated Hypnogram
+ */
 QList<int> SleepStage::getLatestHypnogram()
 {
 	return this->latestHypnogram;
@@ -47,6 +51,7 @@ QList<int> SleepStage::getLatestHypnogram()
  */
 int SleepStage::readECGInput(QString path)
 {
+	// open the file
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         qDebug() << file.errorString();
@@ -98,11 +103,12 @@ int SleepStage::detectRPeaks()
 		return -1;
 	}
 
-	bool carry = false;
+	//bool carry = false;
 
 	for (int i=1; i<(this->ECGInput.size()-1); i++) {
 
-		if (carry) { // ECGInput[i-1] == ECGInput[i]; we still have to find out, if it's a peak ror a saddle point
+		/*
+		if (carry) { // ECGInput[i-1] == ECGInput[i]; we still have to find out, if it's a peak or a saddle point
 			if (this->ECGInput.at(i) > this->ECGInput.at(i+1)) {
 				// found a peak
 
@@ -134,6 +140,14 @@ int SleepStage::detectRPeaks()
 				carry = true;
 			}
 		}
+		*/
+
+		if (this->ECGInput.at(i) > this->R_THRESH) {
+			if ((this->ECGInput.at(i) >= this->ECGInput.at(i-1)) && (this->ECGInput.at(i) > this->ECGInput.at(i+1))) {
+				this->RPeaks.append(static_cast<double>(i)*0.004); // we multiply with 0.004 only here to have a more precise time
+				i++; // might as well skip 1 entry, because it can't be a peak again ;)
+			}
+		}
 	}
 
 	return 0;
@@ -154,26 +168,31 @@ int SleepStage::getBPM()
 		return -1;
 	}
 
-	int numIntervals = 0;
-	double intervalTime = 0.0;
-	int minutes = 1;
+	int numIntervals = 0;		// interval count of one minute
+	double intervalTime = 0.0;	// complete interval time of one minute
+	int minutes = 1;			// minute count
 	for (int i=1; i<this->RPeaks.size(); i++) {
 
 		if (this->RPeaks[i] < static_cast<double>(minutes*60)) {
+			// we have another peak of the current minute
+
 			intervalTime += (this->RPeaks[i] - this->RPeaks[i-1]);
 			numIntervals++;
 		} else {
-			//if (numIntervals == 0) {
+			// we collected all intervals of this minute; time to calcluate the BPM value
+
 			double bpmValue = (1.0/(intervalTime/static_cast<double>(numIntervals)))*60.0;
+
 			// add a BPM value vor every 0.25 seconds for the FFT
 			for (int k=0; k<240; k++) {
 				this->BPMs.append(bpmValue);
 			}
-			numIntervals = 0; // reset this counter for the next minute.
-			intervalTime = 0.0;
+
+			numIntervals = 0;  // reset this counter for the next minute.
+			intervalTime = 0.0;// same here.
 			minutes++;
 		}
-	} // for
+	} // end for
 
 	if (numIntervals != 0) {
 		// we haven't taken care of the very last minute yet, so:
@@ -182,9 +201,6 @@ int SleepStage::getBPM()
 		for (int k=0; k<240; k++) {
 			this->BPMs.append(bpmValue);
 		}
-		numIntervals = 0; // reset this counter for the next minute.
-		intervalTime = 0.0;
-		minutes++;
 	}
 
 	return 0;
@@ -260,7 +276,7 @@ int SleepStage::readHypnoInput(QString path)
  *
  * return: error value
  */
-int SleepStage::fftCalculation()
+int SleepStage::fftCalculation(double n)
 {
 	QProgressDialog progress("calculating FFT", "Cancel [don't!]", 0, (this->BPMs.size()-this->FFT_SIZE));
 	progress.setWindowTitle("Calculating...");
@@ -272,6 +288,8 @@ int SleepStage::fftCalculation()
 
 		double sumLF = 0.0;
 		double sumHF = 0.0;
+		double normSumLF = 0.0;
+		double normSumHF = 0.0;
 		double maxHF = -1000.0;
 		double minHF = 1000.0;
 
@@ -296,7 +314,7 @@ int SleepStage::fftCalculation()
 			// irgendeine Form der Korrektur?
 		}
 
-		// get sumLF and sumHF
+		// get sumLF and sumHF. first round: find out the mean value
 		for (int j=this->LF_START; j<this->LF_END; j++) {
 			sumLF += spectrum[j];
 		}
@@ -310,8 +328,26 @@ int SleepStage::fftCalculation()
 			}
 		}
 
+		double meanLF = sumLF/static_cast<double>(this->LF_END-this->LF_START);
+		double meanHF = sumHF/static_cast<double>(this->HF_END-this->HF_START);
+
+
+		// second round:
+		for (int j=this->LF_START; j<this->LF_END; j++) {
+			if (spectrum[j]>(meanLF*(1.0+n)) || spectrum[j]<(meanLF*(1.0-n))) {
+				continue;
+			}
+			normSumLF += spectrum[j];
+		}
+		for (int j=this->HF_START; j<this->HF_END; j++) {
+			if (spectrum[j]>(meanHF*(1.0+n)) || spectrum[j]<(meanHF*(1.0-n))) {
+				continue;
+			}
+			normSumHF += spectrum[j];
+		}
+
 		// add the values to their respective QList
-		this->LfHfRatio.append(sumLF/sumHF);
+		this->LfHfRatio.append(normSumLF/normSumHF);
 		this->relativePowerHF.append(maxHF/sumHF);
 		this->variabilityHF.append(maxHF-minHF);
 
@@ -324,60 +360,14 @@ int SleepStage::fftCalculation()
 
 
 /*
- * postFft
- *
- * calcuates the minimum and the 90th percentile of the LF/HF ratio and the relative power in the HF band
- * which can only be done after all FFTs are done.
- *
- * return: error value
- */
-int SleepStage::postFft()
-{
-	// we need the minimum and the 90th percentile of LfHfRatio
-
-	QMap<double, int> FFTmap;
-
-	// first round: for lf/hf ratio
-	for (int i=0; i<this->LfHfRatio.size(); i++) {
-		FFTmap.insert(this->LfHfRatio.at(i), 0);
-	}
-
-	QMapIterator<double, int> it_map(FFTmap);
-
-	this->LfHfRatio_min = FFTmap.firstKey();
-	it_map.toBack();
-	for (int i=0; i<(static_cast<double>(this->LfHfRatio.size())*0.1); i++) {
-		it_map.previous();
-	}
-	this->LfHfRatio_90 = it_map.key();
-
-	FFTmap.clear();
-
-
-	// second round: for relative power in the HF band
-	for (int i=0; i<this->relativePowerHF.size(); i++) {
-		FFTmap.insert(this->relativePowerHF.at(i), 0);
-	}
-
-	this->relativePowerHF_min = FFTmap.firstKey();
-	it_map.toBack();
-	for (int i=0; i<(static_cast<double>(this->relativePowerHF.size())*0.1); i++) {
-		it_map.previous();
-	}
-	this->relativePowerHF_90 = it_map.key();
-
-	return 0;
-}
-
-
-/*
  * evaluateThresholds
  *
  * determines the sleep stages for three given threshold values
  * and compares the result with the prescored hypnogram
  *
  * param:
- * - d: threshold value for the LF/HF ratio
+ * - d1: lower threshold value for the LF/HF ratio
+ * - d2: parameter for the upper threshold value for the LF/HF ratio, being d1+d2
  * - e: threshold value for the relative power in te HF band
  * - f: threshold value for the variability of the HF band
  * - best: value to compare the degree of accordance with the prescored hypnogram with.
@@ -385,28 +375,33 @@ int SleepStage::postFft()
  * return: degree of accordance with the prescored hypnogram [%] if the values calculated this round were better than 'best'.
  *		otherwise 'best'.
  */
-double SleepStage::evaluateThresholds(double d, double e, double f, double best)
+double SleepStage::evaluateThresholds(double d1, double d2, double e, double f, double best)
 {
 	QList<int> ownHypno; // our own sleep stage classification for the three given parameters
 
+	// first we assume NREM1/2 for everything.
+	for (int i=0; i< this->LfHfRatio.size(); i++) {
+		ownHypno.append(-2);
+	}
+
 	// first parameter: LF/HF ratio
 	for (int i=0; i < this->LfHfRatio.size(); i++) {
-		if (this->LfHfRatio.at(i) >= d) {
-			ownHypno.append(1);
-		} else {
-			ownHypno.append(-3);
+		if (this->LfHfRatio.at(i) >= (d1+d2)) {
+			ownHypno[i] = 1;
+		} else if(this->LfHfRatio.at(i) < d1){
+			ownHypno[i] = -3;
 		}
 	}
 
 	// second parameter: relative power HF
 	for (int i=0; i<ownHypno.size(); i++) {
-		if (ownHypno.at(i) != 1) {
-			// we only care about epochs that were previously marked as 'wake or REM'
+		if (ownHypno.at(i) != -1) {
+			// we only care about epochs that are marked as 'NREM12'
 			continue;
 		}
 
-		if (this->relativePowerHF.at(i) <= e) {
-			ownHypno[i] = -2;
+		if (this->relativePowerHF.at(i) >= e) {
+			ownHypno[i] = 1;
 		}
 	}
 
@@ -424,19 +419,73 @@ double SleepStage::evaluateThresholds(double d, double e, double f, double best)
 		}
 	}
 
+	// go back to 30s epochs
+	QList<int> ownHypnoEpochs;
+	int epochCounter = 0;
+	int epochEnd;
+	int wakeCounter, remCounter, nrem12Counter, nrem34Counter;
+
+	// 30s * 4 values/s = 120
+	while ((epochCounter*120) < ownHypno.size()) {
+		wakeCounter = remCounter = nrem12Counter = nrem34Counter = 0;
+
+		if (((epochCounter+1)*120) < ownHypno.size()) {
+			epochEnd = 120;
+		} else {
+			epochEnd = ownHypno.size()-(epochCounter*120);
+		}
+
+		for (int i=0; i<epochEnd; i++) {
+			switch (ownHypno.at((epochCounter*120)+i)) {
+				case 0:
+					wakeCounter++;
+					break;
+				case -1:
+					remCounter++;
+					break;
+				case -2:
+					nrem12Counter++;
+					break;
+				default:
+					// should be -3
+					nrem34Counter++;
+					break;
+			}
+		}
+
+		// use a QMap to sort the values
+		QMap<int, int> m;
+		m.insert(wakeCounter, 0);
+		m.insert(remCounter, -1);
+		m.insert(nrem12Counter, -2);
+		m.insert(nrem34Counter, -3);
+		ownHypnoEpochs.append(m.value(m.lastKey()));
+
+		epochCounter++;
+	}
+
 	// now that we did all the classifying, let's see how good it was:
 	int accordanceCounter = 0;
+	for (int i=0; i<ownHypnoEpochs.size(); i++) {
+		if (ownHypnoEpochs.at(i) == this->hypnoInput.at(i)) {
+			accordanceCounter++;
+		}
+	}
+
+
+	/* without 30s epochs
 	for (int i=0; i<ownHypno.size(); i++) {
 		if (ownHypno.at(i) == this->hypnoInput.at( (i-(i%120))/120 )) {
 			accordanceCounter++;
 		}
 	}
+	*/
 
-	this->latestHypnogram = ownHypno;
+	this->latestHypnogram = ownHypnoEpochs;
 	// check if we have a new 'best result'
-	double accordance = static_cast<double>(accordanceCounter)/static_cast<double>(ownHypno.size());
+	double accordance = static_cast<double>(accordanceCounter)/static_cast<double>(ownHypnoEpochs.size());
 	if (accordance > best) {
-		this->hypnogram = ownHypno;
+		this->hypnogram = ownHypnoEpochs;
 	}
 
 	return accordance;
@@ -464,7 +513,7 @@ int SleepStage::getECGInputForPlot(double *&x, double *&y)
 		y[i] = this->ECGInput[i];
 	}
 
-	return this->ECG_INPUT_SIZE;
+	return this->ECGInput.size();
 }
 
 
@@ -612,23 +661,11 @@ int SleepStage::getHypnogramForPlot(double *&x, double *&y)
 	y = new double[this->hypnogram.size()];
 
 	for (int i=0; i<this->hypnogram.size(); i++) {
-		x[i] = static_cast<double>(i)*0.25;
+		//x[i] = static_cast<double>(i)*0.25;
+		x[i] = static_cast<double>(i)*30.0;
 		y[i] = this->hypnogram[i];
 	}
 
 	return this->hypnogram.size();
 }
 
-
-int SleepStage::getHypnogramForPlot(double *&x, double *&y, QList<int> hypno)
-{
-	x = new double[hypno.size()];
-	y = new double[hypno.size()];
-
-	for (int i=0; i<hypno.size(); i++) {
-		x[i] = static_cast<double>(i)*0.25;
-		y[i] = hypno[i];
-	}
-
-	return hypno.size();
-}
